@@ -147,7 +147,7 @@ for wallet in wallets:
         conn.commit()
         log(f"  {processed}/{len(wallets)}...")
 
-    rows = c.execute("SELECT DISTINCT wallet FROM trades WHERE needs_retag=1").fetchall()
+    rows = c.execute('SELECT id,event_id,condition_id,side,outcome,price,size,timestamp FROM trades WHERE wallet=? ORDER BY timestamp', (wallet,)).fetchall()
     if not rows: continue
 
     events = defaultdict(list)
