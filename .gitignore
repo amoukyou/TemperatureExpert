@@ -1,0 +1,7 @@
+*.db
+*.pyc
+__pycache__/
+*.log
+server.log
+recalc.log
+*.env

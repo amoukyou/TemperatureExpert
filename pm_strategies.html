@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>温度市场套利策略图鉴</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;background:#f5f6f8;color:#1a1a2e;line-height:1.7}
+.container{max-width:1100px;margin:0 auto;padding:30px 20px}
+h1{font-size:28px;margin-bottom:6px}
+.subtitle{color:#6b7280;font-size:14px;margin-bottom:30px}
+
+.type-tabs{display:flex;gap:0;margin-bottom:30px;border-bottom:2px solid #e5e7eb}
+.type-tab{padding:12px 28px;font-size:15px;font-weight:600;cursor:pointer;background:none;border:none;color:#6b7280;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s}
+.type-tab:hover{color:#1a1a2e}
+.type-tab.active-a{color:#2563eb;border-bottom-color:#2563eb}
+.type-tab.active-b{color:#7c3aed;border-bottom-color:#7c3aed}
+.type-tab.active-c{color:#059669;border-bottom-color:#059669}
+
+.type-page{display:none}
+.type-page.active{display:block}
+
+.type-header{padding:24px 28px;border-radius:14px;margin-bottom:28px}
+.type-header.type-a{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #93c5fd}
+.type-header.type-b{background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #c4b5fd}
+.type-header h2{font-size:22px;margin-bottom:6px}
+.type-header p{font-size:14px;color:#4b5563}
+.type-badges{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.badge{padding:4px 12px;border-radius:12px;font-size:12px;font-weight:500}
+.badge-risk-low{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
+.badge-risk-mid{background:#fffbeb;color:#d97706;border:1px solid #fcd34d}
+.badge-risk-high{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.badge-skill{background:#eff6ff;color:#2563eb;border:1px solid #93c5fd}
+.badge-math{background:#f5f3ff;color:#7c3aed;border:1px solid #c4b5fd}
+
+.strategy-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:20px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.strategy-header{padding:18px 24px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .15s}
+.strategy-header:hover{background:#f9fafb}
+.strategy-name{font-size:17px;font-weight:700;color:#1a1a2e}
+.strategy-tags{display:flex;gap:6px;align-items:center}
+.strategy-arrow{color:#9ca3af;font-size:18px;transition:transform .2s}
+.strategy-card.open .strategy-arrow{transform:rotate(90deg)}
+.strategy-body{display:none;padding:0 24px 20px;border-top:1px solid #f3f4f6}
+.strategy-card.open .strategy-body{display:block}
+
+.section{margin-bottom:16px}
+.section-title{font-size:13px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f3f4f6}
+
+.logic-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;margin-bottom:12px;font-size:13px}
+.logic-box code{background:#e2e8f0;padding:2px 6px;border-radius:4px;font-size:12px;color:#1e40af}
+
+.example-box{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:14px 18px;margin-bottom:12px;font-size:13px}
+.example-box .label{font-weight:700;color:#92400e;margin-bottom:4px}
+
+.feature-list{list-style:none;padding:0}
+.feature-list li{padding:4px 0;font-size:13px;display:flex;align-items:flex-start;gap:6px}
+.feature-list li::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;margin-top:7px;flex-shrink:0}
+.type-a-page .feature-list li::before{background:#2563eb}
+.type-b-page .feature-list li::before{background:#7c3aed}
+
+.compare-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.compare-table th{background:#f9fafb;padding:8px 10px;text-align:left;color:#6b7280;font-weight:600;border-bottom:2px solid #e5e7eb}
+.compare-table td{padding:8px 10px;border-bottom:1px solid #f3f4f6}
+.compare-table tr:hover{background:#f9fafb}
+
+.flow-steps{display:flex;gap:0;align-items:center;flex-wrap:wrap;margin:12px 0}
+.flow-step{background:#fff;border:1px solid #d1d5db;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;text-align:center;min-width:80px}
+.flow-step.highlight-a{background:#dbeafe;border-color:#3b82f6;color:#1e40af}
+.flow-step.highlight-b{background:#ede9fe;border-color:#7c3aed;color:#5b21b6}
+.flow-step.highlight-green{background:#ecfdf5;border-color:#059669;color:#065f46}
+.flow-step.highlight-red{background:#fef2f2;border-color:#dc2626;color:#991b1b}
+.flow-arrow{font-size:18px;color:#9ca3af;margin:0 4px}
+
+.profit-formula{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 18px;font-family:monospace;font-size:14px;color:#065f46;margin:8px 0}
+
+.data-feature{background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px 18px;margin:8px 0;font-size:13px}
+.data-feature .label{font-weight:700;color:#1e40af;margin-bottom:4px}
+
+.nav-back{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;background:#fff;border:1px solid #d1d5db;border-radius:8px;color:#374151;text-decoration:none;font-size:13px;margin-bottom:20px}
+.nav-back:hover{background:#f3f4f6;border-color:#2563eb}
+</style>
+</head>
+<body>
+<div class="container">
+  <a class="nav-back" href="pm_temperature_dashboard.html">&#x2190; 返回专家看板</a>
+  <h1>&#x1f4d6; 温度市场套利策略图鉴</h1>
+  <p class="subtitle">Polymarket 每日温度预测市场的获利手法全解析 | 两大分类 · 十种策略</p>
+
+  <div class="type-tabs">
+    <button class="type-tab active-a" onclick="showType('a')">&#x1f321; A类：问题技巧</button>
+    <button class="type-tab" onclick="showType('b')">&#x1f9ee; B类：PM平台通用技巧</button>
+    <button class="type-tab" onclick="showType('c')">&#x1f310; C类：跨平台技巧</button>
+  </div>
+
+  <!-- ==================== A类 ==================== -->
+  <div class="type-page type-a-page active" id="pageA">
+    <div class="type-header type-a">
+      <h2>A类：问题技巧 — 需要领域知识</h2>
+      <p>这类策略的核心是<b>对温度的预判能力</b>。你需要比市场更早、更准确地判断温度走势。换一个话题（政治、体育），这些策略就不适用了——你需要的是气象学知识，不是金融知识。</p>
+      <div class="type-badges">
+        <span class="badge badge-skill">需要领域知识</span>
+        <span class="badge badge-risk-mid">风险中等~高</span>
+      </div>
+    </div>
+
+    <!-- A1: 气象预报套利 -->
+    <div class="strategy-card open">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">A1. 气象预报套利</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">对比专业预报与市场定价的信息差</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-mid">中风险</span>
+          <span class="badge badge-skill">需气象数据</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            专业气象模型（NOAA GFS、ECMWF）每 6-12 小时更新一次预报，精度远高于人群直觉。<br>
+            当模型给出的温度概率分布与 Polymarket 市场定价存在显著偏差时，按模型下注即可获利。<br><br>
+            本质：<code>信息延迟套利</code> — 气象数据更新快，市场反应慢，中间存在时间窗口。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">操作流程</div>
+          <div class="flow-steps">
+            <div class="flow-step">获取最新气象预报</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step">计算各温度区间概率</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step">对比 PM 市场价</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step highlight-a">发现偏差 &gt; 阈值</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step highlight-green">买入低估选项</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step">持有到结算</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">举例</div>
+          <div class="example-box">
+            <div class="label">场景</div>
+            GFS 模型预测明天 NYC 最高温 18°C，概率 65%。<br>
+            但 PM 上 "17-18°C" 区间的 Yes 价格只有 $0.35（隐含概率 35%）。<br>
+            <b>偏差 = 65% - 35% = 30个百分点</b> → 买入。<br><br>
+            <div class="profit-formula">买 100 份 Yes @$0.35 = 花 $35 → 如果中了收 $100 → 赚 $65 (186% ROI)</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">数据源</div>
+          <ul class="feature-list">
+            <li>NOAA GFS：每 6 小时更新（00/06/12/18 UTC），免费 API</li>
+            <li>ECMWF：每 12 小时更新，精度最高，部分数据付费</li>
+            <li>Weather Underground：PM 官方结算数据源</li>
+            <li>Open-Meteo：免费天气 API，汇聚多个模型</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <div class="section-title">识别特征（在我们的数据中）</div>
+          <div class="data-feature">
+            <div class="label">如何用看板找到这类人</div>
+            信念比 ≥ 70%（持有到结算）· 均买价 0.15-0.60 · 每事件 1-2 个选项（精准押注）· 稳定盈利<br>
+            <b>过滤器设置：</b>信念比≥70, 每事件最多选项≤2, 均买价≤0.6, A类盈亏≥0
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A2: 温度阶梯 -->
+    <div class="strategy-card">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">A2. 温度阶梯策略 (Laddering)</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">多区间低价广覆盖，中一个回本全部</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-mid">中风险</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            不赌精确温度，而是在预报范围附近的<b>多个相邻区间</b>同时低价挂单。<br>
+            比如预报 15°C ± 3°C，就在 12-18°C 的 7 个区间各买一点。<br><br>
+            每份价格 $0.02-$0.15，只要中一个就赚 $0.85-$0.98。<br>
+            <code>以小博大</code>：总投入 $0.50，中一个赚 $0.50-$0.85。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">举例</div>
+          <div class="example-box">
+            <div class="label">neobrother 的做法（代表人物）</div>
+            在 Buenos Aires / NYC 温度市场，同时买入 5-7 个相邻区间的 Yes：<br>
+            14°C @$0.05, 15°C @$0.12, 16°C @$0.18, 17°C @$0.15, 18°C @$0.08, 19°C @$0.03<br>
+            总投入 = $0.61<br><br>
+            如果实际温度 = 16°C → 16°C 那份值 $1，其余归零<br>
+            <div class="profit-formula">赚 $1 - $0.61 = $0.39 (64% ROI)，即使多花了钱买了没中的区间</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">识别特征</div>
+          <div class="data-feature">
+            <div class="label">如何用看板找到这类人</div>
+            每事件多选项（3-7个）· 低均买价（$0.05-$0.15）· 胜率看起来低（因为每个事件只中1个但买了多个）<br>
+            <b>过滤器设置：</b>每事件最多选项≥3, 均买价≤0.2
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A4: 不对称重注 -->
+    <div class="strategy-card">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">A3. 不对称重注 (Asymmetric Big Bet)</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">大额押注低概率事件，博取超高回报</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-high">高风险</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            在市场认为概率很低（5-15%）但你认为被低估的选项上<b>下大注</b>。<br>
+            如果中了，回报率 700-2000%。如果没中，亏损全部本金。<br><br>
+            这种策略依赖于对<b>极端天气事件</b>的判断力 — 比如突然的热浪、寒潮。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">经典案例</div>
+          <div class="example-box">
+            <div class="label">Hans323 — $92K → $1.11M</div>
+            押注 London 某天温度会异常高（市场隐含概率 8%）。<br>
+            投入 $92,632 买入 Yes @$0.08。<br>
+            实际温度果然创新高 → Yes 结算为 $1。<br>
+            <div class="profit-formula">$92,632 × (1/0.08) ≈ $1,157,900 → 净赚 $1,065,268 (1149% ROI)</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">识别特征</div>
+          <div class="data-feature">
+            <div class="label">如何用看板找到这类人</div>
+            单事件盈利占比极高（>80%）· 参与事件少 · 大额投入 · 盈亏波动剧烈<br>
+            <b>注意：</b>这类人在我们的"专家过滤"中会被"最大单事件盈利占比≤50%"过滤掉，因为他们靠的是运气+胆量而非持续能力
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A5: 气象模型更新窗口 -->
+    <div class="strategy-card">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">A4. 气象模型更新窗口 (Latency Arb)</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">在模型更新后的1-2分钟内抢先下单</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-low">低风险</span>
+          <span class="badge badge-skill">需要 Bot</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            GFS 模型每 6 小时更新（00/06/12/18 UTC），ECMWF 每 12 小时。<br>
+            新预报发布后 1-5 分钟内，多数交易者还未反应，市场价还是旧的。<br><br>
+            <code>Bot 自动解析新预报 → 计算新概率 → 对比市场价 → 下单</code><br>
+            这是 A1 的自动化高速版本，纯粹比速度。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">技术要求</div>
+          <ul class="feature-list">
+            <li>实时订阅气象数据 API（解析 GRIB2 格式）</li>
+            <li>概率分布计算引擎（将点预报转为区间概率）</li>
+            <li>Polymarket CLOB API 集成（毫秒级下单）</li>
+            <li>24/7 运行的服务器</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <div class="section-title">识别特征</div>
+          <div class="data-feature">
+            <div class="label">如何用看板找到这类人</div>
+            极高交易频率 · 交易时间集中在模型更新后 · 持续小额盈利 · 7天活跃度高<br>
+            名字通常带 "bot"、"auto" 等关键词
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== B类 ==================== -->
+  <div class="type-page type-b-page" id="pageB">
+    <div class="type-header type-b">
+      <h2>B类：PM 平台通用技巧 — 与问题无关</h2>
+      <p>这类策略<b>不在乎问题本身在问什么</b>，只利用 Yes/No 选项之间的数学关系和市场结构做风险套利。温度、政治、体育、加密货币——任何 Polymarket 市场都能用。交易者玩的不是"答案"，而是"赔率结构"。</p>
+      <div class="type-badges">
+        <span class="badge badge-math">通用适用</span>
+        <span class="badge badge-risk-low">多为低风险</span>
+      </div>
+    </div>
+
+    <!-- B1: 扫尾盘 -->
+    <div class="strategy-card open">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">B1. 扫尾盘等判决</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">结果已明朗但未结算，抢先买入确定的赢家</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-low">极低风险</span>
+          <span class="badge badge-math">通用</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            适用于<b>任何结果已经明朗但市场还没正式结算</b>的场景。<br>
+            温度市场：下午最高温已确定，但市场到晚上才结算。<br>
+            体育市场：比赛已结束，但结算需要几小时。<br>
+            政治市场：选举结果已出，但市场还在交易。<br><br>
+            <code>在结果已知的窗口期，以 $0.90-$0.98 买入赢家 → 等结算收 $1</code><br>
+            不需要预判任何事情，只需要看到"答案已经出来了"。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">操作流程</div>
+          <div class="flow-steps">
+            <div class="flow-step">事件结果已出</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step">市场尚未结算</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step highlight-b">确认赢家选项</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step highlight-green">买入 Yes @$0.92-0.98</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step">结算收 $1.00</div>
+          </div>
+          <div class="profit-formula">买 1000 份 @$0.95 = 花 $950 → 结算收 $1000 → 赚 $50 (5.3%)</div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">为什么是 B 类而非 A 类</div>
+          <div class="logic-box">
+            虽然温度市场中"扫尾盘"需要看温度数据，但这个策略的本质不是"预测温度"而是"确认已知结果并抢在结算前行动"。<br>
+            同样的手法在任何 PM 市场上都能用——只要结果已公开但还没结算。<br>
+            玩家不需要气象学知识，只需要<b>信息获取速度</b>和<b>执行速度</b>。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">风险点</div>
+          <ul class="feature-list">
+            <li>数据源不一致：你看到的结果和 PM 官方结算数据源可能不同</li>
+            <li>价格已被其他 bot 推到 $0.99+，利润极薄</li>
+            <li>偶尔有争议导致结算延迟或结果反转</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <div class="section-title">识别特征</div>
+          <div class="data-feature">
+            <div class="label">如何用看板找到这类人</div>
+            均买价 ≥ $0.85 · 极高胜率 · "总盈亏"高但"A类盈亏"低或为负<br>
+            在看板中被"近似结算"列捕获
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B2: >1 套利 -->
+    <div class="strategy-card open">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">B2. 总价 &gt;$1 套利 (Overround)</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">所有选项价格之和超过 $1 时，SPLIT 卖出锁定利润</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-low">无风险</span>
+          <span class="badge badge-math">纯数学</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            温度市场每个事件有 7-11 个互斥选项（温度区间），<b>只有一个会中奖</b>。<br>
+            理论上所有选项的 Yes 价格之和应该 = $1.00。<br><br>
+            当总和 &gt; $1 时：
+            <ol style="margin:8px 0 0 20px;font-size:13px">
+              <li>花 $1 执行 <code>SPLIT</code> — 铸造每个选项各 1 份 Yes 代币</li>
+              <li>按市场价卖出所有选项的 Yes</li>
+              <li>总收入 &gt; $1 → 差额就是无风险利润</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">举例</div>
+          <div class="example-box">
+            <div class="label">London 某天温度市场</div>
+            7 个选项的 Yes 价格：$0.05 + $0.12 + $0.18 + $0.25 + $0.22 + $0.13 + $0.08 = <b>$1.03</b><br>
+            <div class="profit-formula">SPLIT $1000 → 铸造 1000 套 → 卖出全部 = 收 $1030 → 净赚 $30 (3%)</div>
+            无论哪个温度中奖，你都已经卖出了所有代币，不持有任何风险。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">检测规则（严格版）</div>
+          <div class="logic-box">
+            必须同时满足：<br>
+            <code>1</code> 在<b>5分钟内</b>卖出 ≥70% 选项的 Yes（SPLIT 后快速卖出）<br>
+            <code>2</code> 各选项卖出量<b>大致均匀</b>（最大/最小不超过 3 倍）<br><br>
+            做市商分批在不同时间段挂卖单不算 B2。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">注意事项</div>
+          <ul class="feature-list">
+            <li>需要逐个选项挂卖单，可能面临滑点</li>
+            <li>手续费会吃掉部分利润（PM 手续费约 1-2%）</li>
+            <li>高频 Bot 竞争激烈，套利窗口通常只有几秒</li>
+            <li>需要足够的资金同时操作多个选项</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- B2: <1 套利 -->
+    <div class="strategy-card">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">B3. 总价 &lt;$1 套利 (Underround)</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">所有选项价格之和不到 $1 时，全买等结算</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-low">无风险</span>
+          <span class="badge badge-math">纯数学</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            当所有选项的 Yes 价格之和 &lt; $1 时：
+            <ol style="margin:8px 0 0 20px;font-size:13px">
+              <li>买入每个选项各 1 份 Yes</li>
+              <li>总花费 &lt; $1</li>
+              <li>结算时必有 1 个中奖 = $1</li>
+              <li>差额 = 无风险利润</li>
+            </ol>
+          </div>
+          <div class="profit-formula">总花费 $0.94 → 结算必收 $1.00 → 赚 $0.06/套 (6.4% ROI)</div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">检测规则（严格版）</div>
+          <div class="logic-box">
+            必须同时满足：<br>
+            <code>1</code> 在<b>5分钟内</b>买入 ≥70% 选项的 Yes（锁定价格窗口）<br>
+            <code>2</code> 各选项买入量<b>大致均匀</b>（最大/最小不超过 3 倍）<br><br>
+            如果分隔数小时或数天买入不同选项，更可能是 A2 温度阶梯或套保策略，不算 B3。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">与 B2 的对比</div>
+          <table class="compare-table">
+            <tr><th></th><th>B2 (>$1)</th><th>B3 (<$1)</th></tr>
+            <tr><td>操作</td><td>SPLIT + 卖出</td><td>全部买入 + 等结算</td></tr>
+            <tr><td>资金占用</td><td>短（卖出即回收）</td><td>长（需等到结算）</td></tr>
+            <tr><td>频率</td><td>较常见（市场偏向过度定价）</td><td>较少见</td></tr>
+            <tr><td>时间约束</td><td>5分钟内完成卖出</td><td>5分钟内完成买入</td></tr>
+            <tr><td>仓位约束</td><td>各选项卖出量大致均匀</td><td>各选项买入量大致均匀</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- B3: Yes+No 双买 -->
+    <div class="strategy-card">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">B4. Yes+No 双买套利</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">同一选项的 Yes+No 价格之和 &lt;$1 时双买</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-low">无风险</span>
+          <span class="badge badge-math">纯数学</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            Polymarket 每个选项都有 Yes 和 No 两个代币，理论上 <code>Yes价 + No价 = $1.00</code>。<br><br>
+            如果 Yes = $0.40, No = $0.55, 总价 = $0.95 &lt; $1：<br>
+            同时买 Yes 和 No，花 $0.95，结算必收 $1 → 赚 $0.05。<br><br>
+            反之如果总价 &gt; $1（如 Yes=$0.45 + No=$0.58 = $1.03）：<br>
+            SPLIT $1 铸造 Yes+No → 分别卖出 → 收 $1.03 → 赚 $0.03。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">检测规则（严格版）</div>
+          <div class="logic-box">
+            必须同时满足：<br>
+            <code>1</code> 在<b>5分钟内</b>同时买入同一 conditionId 的 Yes 和 No<br>
+            <code>2</code> Yes 和 No 的买入金额<b>大致相当</b>（比例在 0.5x-2x 之间）<br><br>
+            如果间隔数小时先买 Yes、后买 No，更可能是对冲或平仓操作。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B4: SPLIT 做市 -->
+    <div class="strategy-card">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">B5. SPLIT 做市策略</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">铸造代币后双边挂单，赚取买卖价差</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-mid">中风险</span>
+          <span class="badge badge-math">纯数学</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            做市商不赌方向，靠<b>买卖价差（spread）</b>赚钱。<br><br>
+            <ol style="margin:8px 0 0 20px;font-size:13px">
+              <li>SPLIT $1 → 铸造 1 份 Yes + 1 份 No</li>
+              <li>在 Yes 侧挂卖单 @$0.42（ask）</li>
+              <li>在 No 侧挂卖单 @$0.60（ask）</li>
+              <li>如果两边都成交 → 收 $0.42 + $0.60 = $1.02 → 赚 $0.02</li>
+            </ol>
+            <br>
+            也可以只卖一边（卖出不看好的），保留另一边当投机仓位。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">风险</div>
+          <ul class="feature-list">
+            <li>单边成交风险：只有一边卖出去，另一边被套</li>
+            <li>价格波动：气象预报更新导致价格剧烈波动，挂单被扫</li>
+            <li>库存风险：持有大量单边代币，结算时可能归零</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <div class="section-title">识别特征</div>
+          <div class="data-feature">
+            <div class="label">如何用看板找到这类人</div>
+            spent = $0（没有买入记录，全是 SELL）· ROI 显示 999% · 高交易次数<br>
+            这类人的代币来自链上 SPLIT 操作，不会出现在交易 API 中
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B5: 子集逻辑矛盾 -->
+    <div class="strategy-card">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">B6. 子集/逻辑矛盾套利</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">利用选项之间的逻辑包含关系</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-low">无风险</span>
+          <span class="badge badge-math">纯数学</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            温度市场的选项有逻辑包含关系：<br>
+            <code>"≤60°F"</code> 包含了 <code>"56-57°F"</code>、<code>"58-59°F"</code>、<code>"60°F"</code><br><br>
+            如果 "≤60°F" 的 Yes 价格 &lt; "58-59°F" 的 Yes 价格，就存在逻辑矛盾：<br>
+            子集的概率不可能大于超集。<br><br>
+            <b>操作</b>：买入 "≤60°F" Yes + 卖出 "58-59°F" Yes → 无论结果都有利可图。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">温度市场的特殊性</div>
+          <ul class="feature-list">
+            <li>PM 温度市场的首尾选项是开放区间："≤X°F" 和 "≥Y°F"</li>
+            <li>这些开放区间是多个具体区间的超集</li>
+            <li>当市场流动性低时，容易出现定价矛盾</li>
+            <li>套利窗口通常很短，需要 bot 监控</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- B7: 未知B类技巧 -->
+    <div class="strategy-card">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">B7. 未知 B 类技巧 (Unknown Pattern)</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">极短时间内高频买卖或同时买入多个选项，疑似未知的结构性套利</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-mid">风险未知</span>
+          <span class="badge badge-math">通用</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            这类行为<b>不符合任何已知的 B1-B6 模式</b>，但明显不是"对温度做判断"的 A 类行为。<br><br>
+            特征表现为：
+            <ul style="margin:8px 0 0 20px;font-size:13px">
+              <li>在<b>极短时间内</b>（同一分钟或几分钟内）对同一事件进行多次买卖</li>
+              <li>在同一事件中<b>买入多个不相邻的选项</b>，但不构成完整的阶梯覆盖</li>
+              <li>快速买入后又快速卖出，像是在<b>刷单、测试流动性或执行某种算法策略</b></li>
+            </ul>
+            <br>
+            可能的解释：
+            <ul style="margin:8px 0 0 20px;font-size:13px">
+              <li>未被公开的新型数学套利手法</li>
+              <li>做市 Bot 的报价调整行为（挂单→撤单→重挂）</li>
+              <li>MEV 或抢先交易（front-running）策略</li>
+              <li>流动性探测（probe 订单簿深度）</li>
+              <li>跨选项的动态对冲（Delta hedging）</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">检测规则</div>
+          <div class="logic-box">
+            同时满足以下条件之一：<br><br>
+            <code>规则1</code>：同一事件中，在 <b>5 分钟内</b>有 ≥5 笔交易（高频短线）<br>
+            <code>规则2</code>：同一事件中，买入了 <b>≥3 个不同选项</b>的 Yes，且不满足 B3（<$1 套利）的条件<br><br>
+            排除已被标记为 B1-B6 的行为后，剩余符合上述规则的标记为 B7。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">与其他策略的区别</div>
+          <table class="compare-table">
+            <tr><th>策略</th><th>多选项买入？</th><th>高频？</th><th>持有到结算？</th></tr>
+            <tr><td>A2 温度阶梯</td><td>是（相邻区间）</td><td>否</td><td>是</td></tr>
+            <tr><td>B3 <$1 套利</td><td>是（≥70%选项）</td><td>可能</td><td>是</td></tr>
+            <tr><td>B4 Yes+No 双买</td><td>是（同一选项两边）</td><td>否</td><td>是</td></tr>
+            <tr><td><b>B7 未知</b></td><td><b>是（不规则）</b></td><td><b>是</b></td><td><b>不一定</b></td></tr>
+          </table>
+        </div>
+
+        <div class="section">
+          <div class="section-title">识别特征</div>
+          <div class="data-feature">
+            <div class="label">如何用看板找到这类人</div>
+            B7 标签（橙色）· 高交易次数但盈亏不大 · 每事件多选项 · 交易时间密集<br>
+            <b>建议：</b>点入个人详情查看交易记录，分析其具体行为模式
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== C类 ==================== -->
+  <div class="type-page type-c-page" id="pageC">
+    <div class="type-header" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:1px solid #6ee7b7">
+      <h2>C类：跨平台技巧 — 利用平台间价差</h2>
+      <p>利用不同预测市场平台（Polymarket、Kalshi、Metaculus 等）对同一事件的定价差异，两边对冲锁定利润。需要多平台账户和资金。</p>
+      <div class="type-badges">
+        <span class="badge" style="background:#ecfdf5;color:#059669;border:1px solid #6ee7b7">跨平台</span>
+        <span class="badge badge-risk-low">低风险</span>
+      </div>
+    </div>
+
+    <div class="strategy-card open">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">C1. 跨平台对冲套利</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">同一事件在不同平台的价差</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-low">低风险</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            Polymarket 和 Kalshi 都有温度预测市场。同一事件在两个平台上的定价可能不同。<br><br>
+            <b>操作</b>：在价格低的平台买 Yes，在价格高的平台买 No（或反之）。<br>
+            两边对冲，无论结果如何都锁定价差利润。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">举例</div>
+          <div class="example-box">
+            <div class="label">NYC 温度 18°C</div>
+            Polymarket: Yes @$0.45<br>
+            Kalshi: No @$0.52（等于隐含 Yes @$0.48）<br><br>
+            在 PM 买 Yes @$0.45 + 在 Kalshi 买 No @$0.52 = 总花费 $0.97<br>
+            <div class="profit-formula">无论结果：一边收 $1 → 赚 $0.03/套 (3.1%)</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">操作流程</div>
+          <div class="flow-steps">
+            <div class="flow-step">监控多平台价格</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step highlight-green">发现 PM Yes + Kalshi No &lt; $1</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step">PM 买 Yes</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step">Kalshi 买 No</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step highlight-green">锁定利润</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">限制与风险</div>
+          <ul class="feature-list">
+            <li>需要在两个平台都有账户和资金</li>
+            <li>Kalshi 仅限美国用户，PM 的 .com 版本不支持美国</li>
+            <li>结算规则可能不完全一致（数据源、判定标准、结算时间）</li>
+            <li>资金效率低（两边都要锁定保证金，年化收益可能不高）</li>
+            <li>汇率和提取手续费侵蚀利润</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <div class="section-title">识别特征</div>
+          <div class="data-feature">
+            <div class="label">在我们的数据中</div>
+            这类策略的操作一半在 PM、一半在 Kalshi，我们只能看到 PM 侧的交易。<br>
+            特征：可能看到只有 Yes 买入（PM侧），没有对应的卖出或结算——因为对冲端在 Kalshi。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 总结对比表 -->
+  <div style="margin-top:40px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+    <h2 style="font-size:18px;margin-bottom:16px">策略总览对比</h2>
+    <table class="compare-table">
+      <thead>
+        <tr><th>策略</th><th>类型</th><th>风险</th><th>预期收益</th><th>技术门槛</th><th>资金需求</th><th>竞争强度</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><b>A1</b> 气象预报套利</td><td style="color:#2563eb">问题技巧</td><td>中</td><td>10-50%/事件</td><td>中（需解析气象数据）</td><td>中</td><td>中</td></tr>
+        <tr><td><b>A2</b> 温度阶梯</td><td style="color:#2563eb">问题技巧</td><td>中</td><td>50-200%/中奖事件</td><td>低</td><td>低</td><td>低</td></tr>
+        <tr><td><b>A3</b> 不对称重注</td><td style="color:#2563eb">问题技巧</td><td>极高</td><td>500-2000%/中奖</td><td>低</td><td>高</td><td>低</td></tr>
+        <tr><td><b>A4</b> 模型更新窗口</td><td style="color:#2563eb">问题技巧</td><td>低</td><td>5-20%/事件</td><td>高（需 Bot）</td><td>中</td><td>高</td></tr>
+        <tr style="border-top:2px solid #e5e7eb"><td><b>B1</b> 扫尾盘等判决</td><td style="color:#7c3aed">PM通用</td><td>极低</td><td>2-8%/事件</td><td>低</td><td>高（需大额吃薄利）</td><td>高</td></tr>
+        <tr><td><b>B2</b> 总价 &gt;$1 套利</td><td style="color:#7c3aed">PM通用</td><td>无</td><td>1-5%/套</td><td>中（需 SPLIT）</td><td>高</td><td>极高</td></tr>
+        <tr><td><b>B3</b> 总价 &lt;$1 套利</td><td style="color:#7c3aed">PM通用</td><td>无</td><td>1-8%/套</td><td>低</td><td>中</td><td>高</td></tr>
+        <tr><td><b>B4</b> Yes+No 双买</td><td style="color:#7c3aed">PM通用</td><td>无</td><td>1-5%/套</td><td>低</td><td>中</td><td>高</td></tr>
+        <tr><td><b>B5</b> SPLIT 做市</td><td style="color:#7c3aed">PM通用</td><td>中</td><td>1-3%/spread</td><td>高（需持续运维）</td><td>高</td><td>高</td></tr>
+        <tr><td><b>B6</b> 子集逻辑矛盾</td><td style="color:#7c3aed">PM通用</td><td>无</td><td>不固定</td><td>中</td><td>低</td><td>中</td></tr>
+        <tr><td><b>B7</b> 未知B类技巧</td><td style="color:#7c3aed">PM通用</td><td>未知</td><td>未知</td><td>高（需分析）</td><td>不定</td><td>不定</td></tr>
+        <tr style="border-top:2px solid #e5e7eb"><td><b>C1</b> 跨平台对冲</td><td style="color:#059669">跨平台</td><td>低</td><td>1-5%/套</td><td>中（需多平台）</td><td>高</td><td>高</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function showType(type){
+  document.querySelectorAll('.type-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.type-tab').forEach(t=>{t.classList.remove('active-a','active-b','active-c')});
+  const pageMap={a:'pageA',b:'pageB',c:'pageC'};
+  document.getElementById(pageMap[type]).classList.add('active');
+  const tabs=document.querySelectorAll('.type-tab');
+  const idx={a:0,b:1,c:2}[type];
+  tabs[idx].classList.add('active-'+type);
+}
+</script>
+</body>
+</html>
