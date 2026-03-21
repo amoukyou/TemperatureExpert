@@ -268,7 +268,7 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
 </div>
 
 <script>
-const API='/api';
+const API=window.location.pathname.replace(/\/+$/,'') + '/api';
 let currentPage=0;const PAGE_SIZE=200;
 
 // === Helper ===

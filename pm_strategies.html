@@ -310,6 +310,96 @@ h1{font-size:28px;margin-bottom:6px}
         </div>
       </div>
     </div>
+
+    <!-- A5: 极限反转 -->
+    <div class="strategy-card">
+      <div class="strategy-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <div class="strategy-name">A5. 极限反转 (Lottery Ticket)</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">用极低价格买入被市场严重高估的"确定性"选项的反面</div>
+        </div>
+        <div class="strategy-tags">
+          <span class="badge badge-risk-high">高风险</span>
+          <span class="badge badge-skill">需判断力</span>
+          <span class="strategy-arrow">&#x25B6;</span>
+        </div>
+      </div>
+      <div class="strategy-body">
+        <div class="section">
+          <div class="section-title">核心逻辑</div>
+          <div class="logic-box">
+            温度市场的每个选项都有 Yes 和 No。当某个温度区间被市场认为"几乎确定会中"时，它的 Yes 价格接近 $1，而 No 价格跌到 $0.001-$0.01。<br><br>
+            <b>极限反转策略</b>：大量买入这些 $0.001-$0.01 的 No 代币。<br><br>
+            <ul style="margin:8px 0 0 20px;font-size:13px">
+              <li>如果市场判断正确（该温度确实中了）→ No 归零 → 亏损 $0.001/份（极小）</li>
+              <li>如果市场判断错误（该温度没中）→ No 值 $1 → 赚 $0.999/份（<b>999倍回报</b>）</li>
+            </ul>
+            <br>
+            本质：<code>用极小成本赌市场犯错</code>。不需要预测温度，只需要判断"市场是否过度自信"。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">经典案例</div>
+          <div class="example-box">
+            <div class="label">用户 738925 — $4,221 → $1,077,955</div>
+            <b>100% 的买入都是 ≤$0.01</b>，覆盖多个城市（London、NYC、Ankara、Seoul 等），每个事件选 1-2 个"被市场认为不可能"的温度区间买 No。<br><br>
+            963 个事件参与，810 个 A 类事件盈利（A类胜率 86%）。<br>
+            平均每次亏 $4-30，但赢一次赚 $1,000-4,000。<br>
+            <div class="profit-formula">投入 $4,221 → 总盈亏 $1,077,955 → ROI 25,537% (255倍)</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">操作模式</div>
+          <div class="flow-steps">
+            <div class="flow-step">扫描所有城市的温度市场</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step">找到 Yes 价格接近 $1 的选项</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step highlight-a">买入 No @$0.001-$0.01</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step">大多数归零（微亏）</div>
+            <span class="flow-arrow">&#x2192;</span>
+            <div class="flow-step highlight-green">偶尔反转 → 巨额回报</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">与 A3 不对称重注的区别</div>
+          <table class="compare-table">
+            <tr><th></th><th>A3 不对称重注</th><th>A5 极限反转</th></tr>
+            <tr><td>方向</td><td>买 Yes（赌温度会中）</td><td>买 No（赌温度不会中）</td></tr>
+            <tr><td>单次投入</td><td>大额（$10K-$100K）</td><td>极小额（$0.001-$0.01/份）</td></tr>
+            <tr><td>频率</td><td>偶尔一次</td><td>每天大量扫射</td></tr>
+            <tr><td>胜率</td><td>极低（靠一把翻盘）</td><td>可以很高（因为很多"确定性"其实不确定）</td></tr>
+            <tr><td>风险</td><td>单次亏损巨大</td><td>单次亏损极小</td></tr>
+            <tr><td>核心能力</td><td>判断极端天气</td><td>判断市场过度自信</td></tr>
+          </table>
+        </div>
+
+        <div class="section">
+          <div class="section-title">为什么有效</div>
+          <div class="logic-box">
+            温度预测的"确定性"经常被高估。气象模型有误差，实际温度可能偏离预报 1-3°C。<br>
+            当市场认为某个区间 99.9% 会中（Yes=$0.999），但实际概率可能只有 90-95%，<br>
+            那么买 No @$0.001 的期望值 = 5% × $1 - 95% × $0.001 = <b>$0.049</b>，远超成本 $0.001。<br><br>
+            <b>关键洞察</b>：市场对极端概率的定价往往不准确（尾部风险被低估）。
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">识别特征</div>
+          <div class="data-feature">
+            <div class="label">如何用看板找到这类人</div>
+            100% 买入价 ≤$0.01 · 交易次数极多 · 覆盖多个城市 · ROI 极高（>1000%）<br>
+            总投入很小但总盈亏巨大 · 信念比接近 100%（全部持有到结算）<br>
+            <b>注意</b>：这类人的"胜率"可能看起来很高，因为大部分 No 确实会赢（那个温度区间没中），但每次只赚 $0.001。真正赚钱的是那少数几次 No 大反转。
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ==================== B类 ==================== -->
@@ -792,6 +882,7 @@ h1{font-size:28px;margin-bottom:6px}
         <tr><td><b>A2</b> 温度阶梯</td><td style="color:#2563eb">问题技巧</td><td>中</td><td>50-200%/中奖事件</td><td>低</td><td>低</td><td>低</td></tr>
         <tr><td><b>A3</b> 不对称重注</td><td style="color:#2563eb">问题技巧</td><td>极高</td><td>500-2000%/中奖</td><td>低</td><td>高</td><td>低</td></tr>
         <tr><td><b>A4</b> 模型更新窗口</td><td style="color:#2563eb">问题技巧</td><td>低</td><td>5-20%/事件</td><td>高（需 Bot）</td><td>中</td><td>高</td></tr>
+        <tr><td><b>A5</b> 极限反转</td><td style="color:#2563eb">问题技巧</td><td>高</td><td>999x/反转</td><td>中（需判断市场过度自信）</td><td>低</td><td>低</td></tr>
         <tr style="border-top:2px solid #e5e7eb"><td><b>B1</b> 扫尾盘等判决</td><td style="color:#7c3aed">PM通用</td><td>极低</td><td>2-8%/事件</td><td>低</td><td>高（需大额吃薄利）</td><td>高</td></tr>
         <tr><td><b>B2</b> 总价 &gt;$1 套利</td><td style="color:#7c3aed">PM通用</td><td>无</td><td>1-5%/套</td><td>中（需 SPLIT）</td><td>高</td><td>极高</td></tr>
         <tr><td><b>B3</b> 总价 &lt;$1 套利</td><td style="color:#7c3aed">PM通用</td><td>无</td><td>1-8%/套</td><td>低</td><td>中</td><td>高</td></tr>
