@@ -171,7 +171,7 @@ with ThreadPoolExecutor(max_workers=5) as executor:
             if exists: continue
 
             p = float(t['price']); s = float(t['size'])
-            c.execute('INSERT INTO trades (wallet,event_id,condition_id,side,outcome,price,size,amount,timestamp,city,event_date,name) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+            c.execute('INSERT INTO trades (wallet,event_id,condition_id,side,outcome,price,size,amount,timestamp,city,event_date,name,needs_retag) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1)',
                 (t['proxyWallet'], eid, t['conditionId'], t['side'], t['outcome'],
                  p, s, round(p*s,4), t['timestamp'], city, date_str, t.get('name','')))
             total_new += 1
@@ -207,7 +207,16 @@ log(f"  Updated {updated} newly closed events")
 
 # === Step 5+6: Run full recalc if there are new trades ===
 if total_new > 0 or updated > 0 or len(new_events) > 0:
-    log("Step 5+6: Running full recalculation...")
+    # Mark wallets from newly resolved events as needing retag
+    if updated > 0:
+        c.execute('''
+            UPDATE trades SET needs_retag=1 WHERE event_id IN (
+                SELECT event_id FROM events WHERE closed=1
+            ) AND needs_retag=0 AND btag=''
+        ''')
+        conn.commit()
+
+    log("Step 5+6: Running incremental recalculation...")
     import subprocess
     result = subprocess.run(['python3', '/opt/pm-expert/full_recalc.py'],
                           capture_output=True, text=True, timeout=1800)
