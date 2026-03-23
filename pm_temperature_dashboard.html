@@ -128,8 +128,18 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
     </div>
     <div class="stats-grid" id="marketStats"></div>
     <div style="display:grid;grid-template-columns:3fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="chart-card"><h3>城市交易量对比 (Top 15)</h3><canvas id="cityCompareChart" height="70"></canvas></div>
-      <div class="chart-card"><h3>盈亏比例</h3><canvas id="pieChart2" height="160"></canvas></div>
+      <div class="chart-card"><h3>城市交易量对比</h3><canvas id="cityCompareChart" height="90"></canvas></div>
+      <div class="chart-card"><h3>盈亏比例</h3><canvas id="pieChart2" height="180"></canvas></div>
+    </div>
+    <div class="filter-section" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:600">城市过滤</span>
+        <div style="display:flex;gap:4px">
+          <button class="filter-btn" onclick="mktSelectAll()" style="font-size:10px;padding:2px 8px">全选</button>
+          <button class="filter-btn" onclick="mktDeselectAll()" style="font-size:10px;padding:2px 8px">全不选</button>
+        </div>
+      </div>
+      <div id="mktCityTags" class="city-tags"></div>
     </div>
     <div class="filter-section">
       <div style="font-size:14px;font-weight:600;margin-bottom:8px">城市热度排行</div>
@@ -769,12 +779,39 @@ async function fetchTrackData(){
 
 // === Market Overview ===
 let cityCompareChart=null, pieChart2=null, mktPeriod=7;
+let mktSelectedCities=new Set();
+let mktAllCities=[];
+
+const CITY_CN={
+  'London':'伦敦','NYC':'纽约','Seoul':'首尔','Tokyo':'东京','Shanghai':'上海',
+  'Beijing':'北京','Shenzhen':'深圳','Chongqing':'重庆','Wuhan':'武汉','Chengdu':'成都',
+  'Hong Kong':'香港','Taipei':'台北','Singapore':'新加坡','Bangkok':'曼谷',
+  'Paris':'巴黎','London':'伦敦','Madrid':'马德里','Milan':'米兰','Munich':'慕尼黑',
+  'Warsaw':'华沙','Ankara':'安卡拉','Tel Aviv':'特拉维夫',
+  'Toronto':'多伦多','Chicago':'芝加哥','Miami':'迈阿密','Dallas':'达拉斯',
+  'Atlanta':'亚特兰大','Seattle':'西雅图','Houston':'休斯顿','Denver':'丹佛',
+  'Austin':'奥斯汀','Los Angeles':'洛杉矶','San Francisco':'旧金山',
+  'Buenos Aires':'布宜诺斯','Sao Paulo':'圣保罗','Wellington':'惠灵顿',
+  'Lucknow':'勒克瑙','Dubai':'迪拜','Global':'全球',
+};
+function cityLabel(name){return CITY_CN[name]?`${name} ${CITY_CN[name]}`:name}
 
 function setMktPeriod(p,el){
   mktPeriod=p;
   document.querySelectorAll('.mkt-period').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   loadMarketPage(true);
+}
+function mktSelectAll(){mktSelectedCities=new Set(mktAllCities);renderMktCityTags();loadMarketPage(true)}
+function mktDeselectAll(){mktSelectedCities.clear();renderMktCityTags();loadMarketPage(true)}
+function mktToggleCity(city){
+  if(mktSelectedCities.has(city))mktSelectedCities.delete(city);else mktSelectedCities.add(city);
+  renderMktCityTags();loadMarketPage(true);
+}
+function renderMktCityTags(){
+  document.getElementById('mktCityTags').innerHTML=mktAllCities.map(c=>
+    `<span class="city-tag ${mktSelectedCities.has(c)?'active':''}" onclick="mktToggleCity('${c}')">${cityLabel(c)}</span>`
+  ).join('');
 }
 
 async function loadMarketPage(force){
@@ -785,46 +822,61 @@ async function loadMarketPage(force){
     fetch(`${API}/stats`).then(r=>r.json())
   ]);
 
-  // Stats cards
-  const totalVol = cities.reduce((s,c)=>s+c.volume,0);
+  // Init city filter
+  const valid = cities.filter(c=>!['Other','DC','Dubai'].includes(c.city)&&!c.city.includes('Central Park'));
+  if(!mktAllCities.length){
+    mktAllCities=valid.map(c=>c.city);
+    mktSelectedCities=new Set(mktAllCities);
+    renderMktCityTags();
+  }
+
+  // Filter by selected cities
+  const filtered = valid.filter(c=>mktSelectedCities.has(c.city));
+
+  // Stats cards with percentages
+  const tw=stats.total_wallets;
+  const pPct=tw>0?(stats.profitable/tw*100).toFixed(1):'0';
+  const lPct=tw>0?(stats.losing/tw*100).toFixed(1):'0';
+  const uW=stats.unsettled_wallets||0;
+  const uPct=tw>0?(uW/tw*100).toFixed(1):'0';
+  const totalVol=filtered.reduce((s,c)=>s+c.volume,0);
+
   document.getElementById('marketStats').innerHTML=[
     {v:stats.total_cities,l:'城市',c:'blue'},
     {v:stats.total_events,l:'事件',c:''},
-    {v:stats.total_wallets.toLocaleString(),l:'参与人',c:''},
-    {v:fmt(totalVol),l:'交易量',c:'yellow'},
-    {v:stats.profitable.toLocaleString(),l:'盈利人数',c:'green'},
-    {v:stats.losing.toLocaleString(),l:'亏损人数',c:'red'},
-    {v:(stats.unsettled_wallets||0).toLocaleString(),l:'持平(进出平)',c:''},
+    {v:tw.toLocaleString(),l:'参与人',c:''},
+    {v:fmt(totalVol),l:'筛选交易量',c:'yellow'},
+    {v:stats.profitable.toLocaleString(),l:`盈利 (${pPct}%)`,c:'green'},
+    {v:stats.losing.toLocaleString(),l:`亏损 (${lPct}%)`,c:'red'},
+    {v:uW.toLocaleString(),l:`持平 (${uPct}%)`,c:''},
     {v:fmt(stats.total_profit||0),l:'总盈利额',c:'green'},
     {v:fmt(Math.abs(stats.total_loss||0)),l:'总亏损额',c:'red'},
-    {v:fmt(stats.unsettled_volume||0),l:'未结算锁定',c:'purple'},
   ].map(x=>`<div class="stat-card"><div class="stat-value ${x.c}">${x.v}</div><div class="stat-label">${x.l}</div></div>`).join('');
 
-  // Filter valid cities
-  const valid = cities.filter(c=>!['Other','DC','Dubai'].includes(c.city)&&!c.city.includes('Central Park'));
-
-  // Bar chart
-  const top15 = valid.slice(0,15);
+  // Bar chart - all labels show city name
   if(cityCompareChart)cityCompareChart.destroy();
+  const chartCities=filtered.slice(0,20);
   cityCompareChart = new Chart(document.getElementById('cityCompareChart'),{
     type:'bar',
-    data:{labels:top15.map(c=>c.city),datasets:[{data:top15.map(c=>c.volume),backgroundColor:'#3b82f666',borderColor:'#3b82f6',borderWidth:1,borderRadius:4}]},
+    data:{labels:chartCities.map(c=>cityLabel(c.city)),datasets:[{data:chartCities.map(c=>c.volume),backgroundColor:'#3b82f666',borderColor:'#3b82f6',borderWidth:1,borderRadius:4}]},
     options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'$'+ctx.parsed.x.toLocaleString()}}},
-      scales:{x:{ticks:{color:'#6b7280',callback:v=>'$'+fmt(v)},grid:{color:'#f3f4f6'}},y:{ticks:{color:'#374151',font:{size:11}},grid:{display:false},afterFit:s=>{s.width=100}}}}
+      scales:{x:{ticks:{color:'#6b7280',callback:v=>'$'+fmt(v)},grid:{color:'#f3f4f6'}},
+        y:{ticks:{color:'#374151',font:{size:11},autoSkip:false},grid:{display:false},afterFit:s=>{s.width=130}}}}
   });
 
-  // Pie chart
+  // Pie chart with percentages
   if(pieChart2)pieChart2.destroy();
+  const uCount=tw-stats.profitable-stats.losing;
   pieChart2 = new Chart(document.getElementById('pieChart2'),{
     type:'doughnut',
-    data:{labels:[`盈利 ${stats.profitable}`,`亏损 ${stats.losing}`,`持平 ${stats.total_wallets-stats.profitable-stats.losing}`],
-      datasets:[{data:[stats.profitable,stats.losing,stats.total_wallets-stats.profitable-stats.losing],backgroundColor:['#059669','#dc2626','#d1d5db'],borderWidth:0}]},
-    options:{plugins:{legend:{position:'bottom',labels:{color:'#374151',padding:10,font:{size:11}}}}}
+    data:{labels:[`盈利 ${pPct}%`,`亏损 ${lPct}%`,`持平 ${uPct}%`],
+      datasets:[{data:[stats.profitable,stats.losing,uCount],backgroundColor:['#059669','#dc2626','#d1d5db'],borderWidth:0}]},
+    options:{plugins:{legend:{position:'bottom',labels:{color:'#374151',padding:8,font:{size:11}}}}}
   });
 
   // City table
-  document.getElementById('cityTbody').innerHTML = valid.map((c,i)=>
-    `<tr><td style="text-align:left">${i+1}</td><td style="text-align:left;font-weight:600">${c.city}</td>
+  document.getElementById('cityTbody').innerHTML = filtered.map((c,i)=>
+    `<tr><td style="text-align:left">${i+1}</td><td style="text-align:left;font-weight:600">${cityLabel(c.city)}</td>
     <td>${c.events||0}</td><td>${c.wallets.toLocaleString()}</td><td>${c.trades.toLocaleString()}</td><td>$${fmt(c.volume)}</td></tr>`
   ).join('');
 
