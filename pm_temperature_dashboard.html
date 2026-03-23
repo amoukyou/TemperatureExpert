@@ -176,6 +176,13 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
         </tr></thead><tbody id="cityTbody"></tbody></table>
       </div>
     </div>
+
+    <!-- Research recommendation -->
+    <div class="filter-section" style="margin-top:12px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">&#x1f4a1; 综合研究推荐</div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:8px">评分逻辑：交易量越大(40%) + 参与人越多(30%) + 盈利占比越低(30%) = 越值得研究（市场大、人多、但赚钱难 → 信息优势价值高）</div>
+      <div id="recommendList"></div>
+    </div>
   </div>
 
   <!-- Search Tab -->
@@ -958,6 +965,36 @@ async function loadMarketPage(force){
     <td>${c.events||0}</td><td>${c.wallets.toLocaleString()}</td><td>${c.trades.toLocaleString()}</td><td>$${(c.volume||0).toLocaleString(undefined,{maximumFractionDigits:0})}</td>
     <td style="color:#059669">${prof.toLocaleString()}</td><td style="color:#dc2626">${loss.toLocaleString()}</td>
     <td style="font-weight:600;color:${parseFloat(ratio)>50?'#059669':'#dc2626'}">${ratio}%</td></tr>`;
+  }).join('');
+
+  // Research recommendation scoring
+  const maxVol=Math.max(...filtered.map(c=>c.volume||0),1);
+  const maxWal=Math.max(...filtered.map(c=>c.wallets||0),1);
+  const scored=filtered.map(c=>{
+    const prof=c.profitable||0;const loss=c.losing||0;const tpl=prof+loss;
+    const profRatio=tpl>0?prof/tpl:0.5;
+    // Score: volume(40%) + wallets(30%) + low_profit_ratio(30%)
+    const sVol=(c.volume||0)/maxVol;
+    const sWal=(c.wallets||0)/maxWal;
+    const sLowProf=1-profRatio; // lower profit ratio = higher score
+    const score=sVol*0.4+sWal*0.3+sLowProf*0.3;
+    return {...c, score:Math.round(score*100), profRatio:Math.round(profRatio*100)};
+  }).filter(c=>c.wallets>10).sort((a,b)=>b.score-a.score);
+
+  document.getElementById('recommendList').innerHTML=scored.slice(0,10).map((c,i)=>{
+    const medal=i<3?['&#x1f947;','&#x1f948;','&#x1f949;'][i]:`${i+1}`;
+    const barW=Math.min(c.score,100);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f3f4f6">
+      <span style="width:28px;text-align:center;font-size:14px">${medal}</span>
+      <span style="width:140px;font-weight:600;font-size:13px">${cityLabel(c.city)}</span>
+      <div style="flex:1;display:flex;align-items:center;gap:8px">
+        <div style="flex:1;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden">
+          <div style="width:${barW}%;height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:4px"></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:#1a1a2e;min-width:35px">${c.score}分</span>
+      </div>
+      <span style="font-size:11px;color:#6b7280;min-width:180px">量${fmt(c.volume)} · ${c.wallets.toLocaleString()}人 · 盈${c.profRatio}%</span>
+    </div>`;
   }).join('');
 
 }
