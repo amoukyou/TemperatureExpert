@@ -148,6 +148,7 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
           <button class="filter-btn chart-tab active" onclick="setChartTab('volume',this)">交易量</button>
           <button class="filter-btn chart-tab" onclick="setChartTab('events',this)">事件数</button>
           <button class="filter-btn chart-tab" onclick="setChartTab('wallets',this)">参与人数</button>
+          <button class="filter-btn chart-tab" onclick="setChartTab('profitRatio',this)">盈亏比</button>
         </div>
         <canvas id="cityCompareChart" height="90"></canvas>
       </div>
@@ -189,6 +190,23 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
   <!-- Search Tab -->
   <div id="pageSearch">
     <div class="stats-grid" id="statsGrid"><div class="loading">加载中...</div></div>
+    <div class="filter-section" style="padding:10px 18px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:12px;font-weight:600">城市范围</span>
+          <span style="font-size:10px;color:#9ca3af" id="searchCityLabel">全部城市</span>
+        </div>
+        <div style="display:flex;gap:4px">
+          <button class="filter-btn" onclick="searchSelectAllCities()" style="font-size:10px;padding:2px 8px">全选</button>
+          <button class="filter-btn" onclick="searchDeselectAllCities()" style="font-size:10px;padding:2px 8px">全不选</button>
+          <span style="color:#d1d5db">|</span>
+          <button class="filter-btn" onclick="searchSelectRegion('asia')" style="font-size:10px;padding:2px 8px">亚洲</button>
+          <button class="filter-btn" onclick="searchSelectRegion('europe')" style="font-size:10px;padding:2px 8px">欧洲</button>
+          <button class="filter-btn" onclick="searchSelectRegion('americas')" style="font-size:10px;padding:2px 8px">美洲</button>
+        </div>
+      </div>
+      <div id="searchCityTags" class="city-tags"></div>
+    </div>
     <div class="filter-section">
       <div class="expert-filter">
         <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">自定义过滤器</div>
@@ -315,6 +333,38 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
 <script>
 const API=window.location.pathname.replace(/\/+$/,'') + '/api';
 let _debounce;function debouncedLoad(){clearTimeout(_debounce);_debounce=setTimeout(()=>{currentPage=0;loadWallets()},300)}
+
+// Search page city filter
+let searchSelectedCities=new Set();
+let searchAllCities=[];
+let searchCitiesInited=false;
+
+async function initSearchCities(){
+  if(searchCitiesInited)return;
+  const cities=await fetch(`${API}/cities`).then(r=>r.json());
+  searchAllCities=cities.filter(c=>!['Other','DC','Dubai'].includes(c.city)&&!c.city.includes('Central Park')).map(c=>c.city);
+  searchSelectedCities=new Set(searchAllCities);
+  renderSearchCityTags();
+  searchCitiesInited=true;
+}
+function renderSearchCityTags(){
+  const el=document.getElementById('searchCityTags');
+  if(!el)return;
+  el.innerHTML=searchAllCities.map(c=>
+    `<span class="city-tag ${searchSelectedCities.has(c)?'active':''}" onclick="searchToggleCity('${c}')">${cityLabel(c)}</span>`
+  ).join('');
+  const label=document.getElementById('searchCityLabel');
+  if(label) label.textContent=searchSelectedCities.size===searchAllCities.length?'全部城市':`已选 ${searchSelectedCities.size} 个城市`;
+}
+function searchToggleCity(c){searchSelectedCities.has(c)?searchSelectedCities.delete(c):searchSelectedCities.add(c);renderSearchCityTags();currentPage=0;loadWallets()}
+function searchSelectAllCities(){searchSelectedCities=new Set(searchAllCities);renderSearchCityTags();currentPage=0;loadWallets()}
+function searchDeselectAllCities(){searchSelectedCities.clear();renderSearchCityTags();currentPage=0;loadWallets()}
+function searchSelectRegion(region){
+  searchSelectedCities.clear();
+  const rc=REGIONS[region]||[];
+  for(const c of searchAllCities){if(rc.includes(c))searchSelectedCities.add(c)}
+  renderSearchCityTags();currentPage=0;loadWallets();
+}
 let currentPage=0;const PAGE_SIZE=200;
 
 // === Helper ===
@@ -346,6 +396,11 @@ async function loadWallets(){
   if(br)params.set('max_b_ratio',br);
   const active=document.getElementById('activeFilter').value;
   if(active)params.set('active_days',active);
+
+  // City filter
+  if(searchSelectedCities.size>0 && searchSelectedCities.size<searchAllCities.length){
+    params.set('cities',[...searchSelectedCities].join(','));
+  }
 
   const res=await(await fetch(`${API}/wallets?${params}`)).json();
   renderWalletTable(res);
@@ -830,15 +885,28 @@ function renderMktBarChart(){
   const filtered=mktCachedFiltered;
   if(!filtered.length)return;
   if(cityCompareChart)cityCompareChart.destroy();
-  const labelMap={volume:'交易量',events:'事件数',wallets:'参与人数'};
-  const colorMap={volume:['#3b82f666','#3b82f6'],events:['#8b5cf666','#8b5cf6'],wallets:['#f59e0b66','#f59e0b']};
-  const sorted=[...filtered].sort((a,b)=>(b[mktChartTab]||0)-(a[mktChartTab]||0)).slice(0,20);
+  const colorMap={volume:['#3b82f666','#3b82f6'],events:['#8b5cf666','#8b5cf6'],wallets:['#f59e0b66','#f59e0b'],profitRatio:['#05966966','#059669']};
+  let sorted,chartData,tooltipFn,tickFn;
+  if(mktChartTab==='profitRatio'){
+    sorted=[...filtered].map(c=>{const t=(c.profitable||0)+(c.losing||0);return{...c,pr:t>0?(c.profitable||0)/t*100:0}}).sort((a,b)=>a.pr-b.pr).slice(0,20);
+    chartData=sorted.map(c=>Math.round(c.pr*10)/10);
+    tooltipFn=ctx=>ctx.parsed.x.toFixed(1)+'%';
+    tickFn=v=>v+'%';
+  } else {
+    sorted=[...filtered].sort((a,b)=>(b[mktChartTab]||0)-(a[mktChartTab]||0)).slice(0,20);
+    chartData=sorted.map(c=>c[mktChartTab]||0);
+    tooltipFn=ctx=>mktChartTab==='volume'?'$'+ctx.parsed.x.toLocaleString():ctx.parsed.x.toLocaleString();
+    tickFn=v=>mktChartTab==='volume'?'$'+fmt(v):v.toLocaleString();
+  }
   const colors=colorMap[mktChartTab]||colorMap.volume;
+  // For profitRatio, color bars: green if >50%, red if <50%
+  const bgColors=mktChartTab==='profitRatio'?chartData.map(v=>v>=50?'#05966966':'#dc262666'):colors[0];
+  const bdColors=mktChartTab==='profitRatio'?chartData.map(v=>v>=50?'#059669':'#dc2626'):colors[1];
   cityCompareChart = new Chart(document.getElementById('cityCompareChart'),{
     type:'bar',
-    data:{labels:sorted.map(c=>cityLabel(c.city)),datasets:[{data:sorted.map(c=>c[mktChartTab]||0),backgroundColor:colors[0],borderColor:colors[1],borderWidth:1,borderRadius:4}]},
-    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>mktChartTab==='volume'?'$'+ctx.parsed.x.toLocaleString():ctx.parsed.x.toLocaleString()}}},
-      scales:{x:{ticks:{color:'#6b7280',callback:v=>mktChartTab==='volume'?'$'+fmt(v):v.toLocaleString()},grid:{color:'#f3f4f6'}},
+    data:{labels:sorted.map(c=>cityLabel(c.city)),datasets:[{data:chartData,backgroundColor:bgColors,borderColor:bdColors,borderWidth:1,borderRadius:4}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:tooltipFn}}},
+      scales:{x:{ticks:{color:'#6b7280',callback:tickFn},grid:{color:'#f3f4f6'}},
         y:{ticks:{color:'#374151',font:{size:11},autoSkip:false},grid:{display:false},afterFit:s=>{s.width=130}}}}
   });
 }
@@ -1034,6 +1102,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 // === Init ===
 (async()=>{
   await loadGroups();
+  await initSearchCities();
   loadWallets();
 })();
 </script>

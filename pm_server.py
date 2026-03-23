@@ -89,6 +89,54 @@ def get_wallets():
         d=int(v); col='a7' if d<=7 else 'a14' if d<=14 else 'a30'
         where.append(f'{col} > 0')
 
+    # City filter: if cities specified, aggregate from wallet_city
+    cities_param = request.args.get('cities', '')
+    if cities_param:
+        city_list = [c.strip() for c in cities_param.split(',') if c.strip()]
+        cph = ','.join('?' * len(city_list))
+        # Aggregate wallet_city for selected cities, join with wallets for global fields
+        w = ' AND '.join(where)
+        dir_sql = 'ASC' if order=='asc' else 'DESC'
+        # Map sort fields: city-specific fields come from wc aggregate, others from w table
+        city_sort_map = {'pnl_a':'city_pnl','total_pnl':'city_pnl','total_spent':'city_spent','events_a':'city_events','trades_count':'city_trades'}
+        actual_sort = city_sort_map.get(sort, sort)
+
+        rows = db.execute(f'''
+            SELECT w.wallet, w.name, w.btags, w.b_ratio, w.curve_score, w.sharpe, w.profit_factor,
+                w.max_drawdown, w.a7, w.a14, w.a30, w.last_active, w.win_rate_a, w.conv, w.avg_buy_low,
+                w.max_opts, w.events_a, w.wins_a, w.losses_a, w.roi,
+                SUM(wc.pnl) as city_pnl, SUM(wc.spent) as city_spent,
+                SUM(wc.recv) as city_recv, SUM(wc.trades) as city_trades,
+                SUM(wc.events) as city_events,
+                SUM(wc.wins_low) as city_wins, SUM(wc.losses_low) as city_losses,
+                SUM(wc.pnl_low) as city_pnl_low
+            FROM wallet_city wc
+            JOIN wallets w ON wc.wallet = w.wallet
+            WHERE wc.city IN ({cph}) AND {w}
+            GROUP BY wc.wallet
+            ORDER BY {actual_sort} {dir_sql}
+            LIMIT ? OFFSET ?
+        ''', city_list + params + [limit, page*limit]).fetchall()
+
+        total = db.execute(f'''
+            SELECT COUNT(DISTINCT wc.wallet) FROM wallet_city wc
+            JOIN wallets w ON wc.wallet = w.wallet
+            WHERE wc.city IN ({cph}) AND {w}
+        ''', city_list + params).fetchone()[0]
+
+        # Remap fields so frontend sees consistent names
+        data = []
+        for r in rows:
+            d = dict(r)
+            d['total_pnl'] = d.pop('city_pnl', 0) or 0
+            d['pnl_a'] = d.pop('city_pnl_low', 0) or 0
+            d['total_spent'] = d.pop('city_spent', 0) or 0
+            d['total_recv'] = d.pop('city_recv', 0) or 0
+            d['trades_count'] = d.pop('city_trades', 0) or 0
+            d['events_total'] = d.pop('city_events', 0) or 0
+            data.append(d)
+        return jsonify({'total':total,'page':page,'limit':limit,'data':data,'city_filter':city_list})
+
     w = ' AND '.join(where)
     rows = db.execute(f'SELECT * FROM wallets WHERE {w} ORDER BY {sort} {"ASC" if order=="asc" else "DESC"} LIMIT ? OFFSET ?', params+[limit,page*limit]).fetchall()
     total = db.execute(f'SELECT COUNT(*) FROM wallets WHERE {w}', params).fetchone()[0]
