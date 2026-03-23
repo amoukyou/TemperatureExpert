@@ -94,6 +94,8 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
 .won-yes{color:#059669}.won-no{color:#dc2626}.won-pending{color:#9ca3af}
 .profile-link{display:inline-block;padding:4px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#2563eb;text-decoration:none;font-size:12px;margin-left:10px}
 
+.spinner{display:inline-block;width:20px;height:20px;border:3px solid #e5e7eb;border-top:3px solid #3b82f6;border-radius:50%;animation:spin .6s linear infinite;margin-bottom:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -378,6 +380,10 @@ function renderBtags(btags){
 
 // === Wallets ===
 async function loadWallets(){
+  // Show loading
+  document.getElementById('tbody').innerHTML='<tr><td colspan="16" style="text-align:center;padding:40px;color:#9ca3af"><div class="spinner"></div>加载中...</td></tr>';
+  document.getElementById('statsGrid').innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af"><div class="spinner"></div></div>';
+
   const params=new URLSearchParams();
   params.set('sort',document.getElementById('sortField').value);
   params.set('order',document.getElementById('sortDir').value);
@@ -530,13 +536,18 @@ async function openProfile(wallet){
   document.getElementById('modalPmLink').href=`https://polymarket.com/profile/${wallet}`;
 
   // Fetch wallet info + trades in parallel
-  const [wRes, trades]=await Promise.all([
+  const [wRes, allTrades]=await Promise.all([
     fetch(`${API}/wallet/${wallet}`).then(r=>r.json()),
     fetch(`${API}/wallet/${wallet}/trades`).then(r=>r.json())
   ]);
 
+  // Filter trades by selected cities (if city filter active)
+  const hasCityFilter = searchSelectedCities.size>0 && searchSelectedCities.size<searchAllCities.length;
+  const trades = hasCityFilter ? allTrades.filter(t=>searchSelectedCities.has(t.city)) : allTrades;
+  const cityNote = hasCityFilter ? ` (仅 ${searchSelectedCities.size} 个城市)` : '';
+
   const w=wRes.wallet;
-  document.getElementById('modalName').textContent=w.name||'Anonymous';
+  document.getElementById('modalName').textContent=(w.name||'Anonymous')+cityNote;
 
   const pC=(w.pnl_a||0)>=0?'green':'red';
   let html=`<div class="profile-stats">
@@ -960,6 +971,7 @@ function renderMktCityTags(){
 
 async function loadMarketPage(force){
   if(!force&&cityCompareChart)return;
+  document.getElementById('marketStats').innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af;grid-column:1/-1"><div class="spinner"></div></div>';
   const daysParam = mktPeriod > 0 ? `days=${mktPeriod}` : '';
   const citiesParam = mktSelectedCities.size>0&&mktSelectedCities.size<mktAllCities.length
     ? `cities=${[...mktSelectedCities].join(',')}` : '';
