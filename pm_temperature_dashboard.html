@@ -789,11 +789,15 @@ async function loadMarketPage(force){
   const totalVol = cities.reduce((s,c)=>s+c.volume,0);
   document.getElementById('marketStats').innerHTML=[
     {v:stats.total_cities,l:'城市',c:'blue'},
-    {v:stats.total_events,l:'事件总数',c:''},
-    {v:stats.total_wallets.toLocaleString(),l:'总参与人',c:''},
-    {v:'$'+fmt(totalVol),l:'总交易量',c:'yellow'},
-    {v:stats.profitable.toLocaleString(),l:'盈利',c:'green'},
-    {v:stats.losing.toLocaleString(),l:'亏损',c:'red'},
+    {v:stats.total_events,l:'事件',c:''},
+    {v:stats.total_wallets.toLocaleString(),l:'参与人',c:''},
+    {v:fmt(totalVol),l:'交易量',c:'yellow'},
+    {v:stats.profitable.toLocaleString(),l:'盈利人数',c:'green'},
+    {v:stats.losing.toLocaleString(),l:'亏损人数',c:'red'},
+    {v:(stats.unsettled_wallets||0).toLocaleString(),l:'持平(进出平)',c:''},
+    {v:fmt(stats.total_profit||0),l:'总盈利额',c:'green'},
+    {v:fmt(Math.abs(stats.total_loss||0)),l:'总亏损额',c:'red'},
+    {v:fmt(stats.unsettled_volume||0),l:'未结算锁定',c:'purple'},
   ].map(x=>`<div class="stat-card"><div class="stat-value ${x.c}">${x.v}</div><div class="stat-label">${x.l}</div></div>`).join('');
 
   // Filter valid cities
@@ -841,15 +845,21 @@ function switchTab(tab){
 // === Help tips ===
 document.addEventListener('click',e=>{
   const tip=e.target.closest('.help-tip');
+  // Close all others
   document.querySelectorAll('.help-tip.show').forEach(t=>{if(t!==tip)t.classList.remove('show')});
-  if(!tip)return;e.stopPropagation();tip.classList.toggle('show');
+  if(!tip)return;
+  // Prevent label from stealing the click
+  e.preventDefault();e.stopPropagation();
+  tip.classList.toggle('show');
   const bubble=tip.querySelector('.help-bubble');
   if(bubble&&tip.classList.contains('show')){
-    requestAnimationFrame(()=>{const r=tip.getBoundingClientRect();
+    requestAnimationFrame(()=>{
+      const r=tip.getBoundingClientRect();
       bubble.style.left=Math.max(8,Math.min(innerWidth-270,r.left+r.width/2-130))+'px';
-      bubble.style.top=(r.top-bubble.offsetHeight-10>0?r.top-bubble.offsetHeight-10:r.bottom+10)+'px'});
+      bubble.style.top=(r.top-bubble.offsetHeight-10>0?r.top-bubble.offsetHeight-10:r.bottom+10)+'px';
+    });
   }
-});
+},true); // Use capture phase to run before label handler
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 
 // === Init ===

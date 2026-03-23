@@ -308,13 +308,32 @@ def filtered_daily():
 @app.route('/api/stats')
 def get_stats():
     db = get_db()
+    total_w = db.execute('SELECT COUNT(*) FROM wallets').fetchone()[0]
+    profitable = db.execute('SELECT COUNT(*) FROM wallets WHERE total_pnl>0.01').fetchone()[0]
+    losing = db.execute('SELECT COUNT(*) FROM wallets WHERE total_pnl<-0.01').fetchone()[0]
+    unsettled_w = total_w - profitable - losing
+
+    total_profit = db.execute('SELECT COALESCE(SUM(total_pnl),0) FROM wallets WHERE total_pnl>0').fetchone()[0]
+    total_loss = db.execute('SELECT COALESCE(SUM(total_pnl),0) FROM wallets WHERE total_pnl<0').fetchone()[0]
+
+    unsettled_vol = db.execute('''SELECT COALESCE(SUM(t.amount),0) FROM trades t
+        JOIN events e ON t.event_id=e.event_id WHERE e.closed=0''').fetchone()[0]
+    no_winner_vol = db.execute('''SELECT COALESCE(SUM(t.amount),0) FROM trades t
+        JOIN events e ON t.event_id=e.event_id WHERE e.closed=1
+        AND (SELECT COUNT(*) FROM markets m WHERE m.event_id=e.event_id AND m.is_winner=1)=0''').fetchone()[0]
+
     return jsonify({
-        'total_wallets': db.execute('SELECT COUNT(*) FROM wallets').fetchone()[0],
+        'total_wallets': total_w,
         'total_events': db.execute('SELECT COUNT(*) FROM events').fetchone()[0],
         'total_trades': db.execute('SELECT COUNT(*) FROM trades').fetchone()[0],
         'total_cities': db.execute("SELECT COUNT(DISTINCT city) FROM events WHERE city NOT IN ('Other','DC','Dubai')").fetchone()[0],
-        'profitable': db.execute('SELECT COUNT(*) FROM wallets WHERE pnl_a>0.01').fetchone()[0],
-        'losing': db.execute('SELECT COUNT(*) FROM wallets WHERE pnl_a<-0.01').fetchone()[0],
+        'profitable': profitable,
+        'losing': losing,
+        'unsettled_wallets': unsettled_w,
+        'total_profit': round(total_profit),
+        'total_loss': round(total_loss),
+        'unsettled_volume': round(unsettled_vol),
+        'no_winner_volume': round(no_winner_vol),
     })
 
 if __name__ == '__main__':
