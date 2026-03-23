@@ -944,15 +944,16 @@ async function loadMarketPage(force){
   const citySort = document.getElementById('citySortField')?.value || 'volume';
   const sortedCities = [...filtered].sort((a,b)=>{
     if(citySort==='profitRatio'){
-      const ra=a.wallets>0?(a.profitable||0)/a.wallets:0;
-      const rb=b.wallets>0?(b.profitable||0)/b.wallets:0;
+      const ta=(a.profitable||0)+(a.losing||0); const tb=(b.profitable||0)+(b.losing||0);
+      const ra=ta>0?(a.profitable||0)/ta:0; const rb=tb>0?(b.profitable||0)/tb:0;
       return rb-ra;
     }
     return (b[citySort]||0)-(a[citySort]||0);
   });
   document.getElementById('cityTbody').innerHTML = sortedCities.map((c,i)=>{
     const prof=c.profitable||0; const loss=c.losing||0;
-    const ratio=c.wallets>0?(prof/c.wallets*100).toFixed(1):'0';
+    const total_pl=prof+loss;
+    const ratio=total_pl>0?(prof/total_pl*100).toFixed(1):'0';
     return `<tr><td style="text-align:left">${i+1}</td><td style="text-align:left;font-weight:600">${cityLabel(c.city)}</td>
     <td>${c.events||0}</td><td>${c.wallets.toLocaleString()}</td><td>${c.trades.toLocaleString()}</td><td>$${(c.volume||0).toLocaleString(undefined,{maximumFractionDigits:0})}</td>
     <td style="color:#059669">${prof.toLocaleString()}</td><td style="color:#dc2626">${loss.toLocaleString()}</td>
