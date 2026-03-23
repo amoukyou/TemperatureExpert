@@ -63,6 +63,7 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
 .btag-b3{background:#dbeafe;color:#1e40af}.btag-b4{background:#fce7f3;color:#9d174d}
 .btag-b5{background:#d1fae5;color:#065f46}.btag-b7{background:#fed7aa;color:#9a3412}
 .btag-pure{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;font-size:10px;padding:2px 6px;border-radius:6px}
+.chart-tab.active{background:#dbeafe;border-color:#3b82f6;color:#1e40af}
 .conv-bar{display:inline-block;height:4px;border-radius:2px;vertical-align:middle}
 .wr-bar{display:inline-block;height:4px;border-radius:2px;vertical-align:middle;margin-right:3px}
 
@@ -141,9 +142,15 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
     <div class="stats-grid" id="marketStats"></div>
 
     <!-- Charts -->
-    <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="chart-card"><h3>城市交易量</h3><canvas id="cityCompareChart" height="90"></canvas></div>
-      <div class="chart-card"><h3>城市事件数</h3><canvas id="cityEventsChart" height="90"></canvas></div>
+    <div style="display:grid;grid-template-columns:3fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="chart-card">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button class="filter-btn chart-tab active" onclick="setChartTab('volume',this)">交易量</button>
+          <button class="filter-btn chart-tab" onclick="setChartTab('events',this)">事件数</button>
+          <button class="filter-btn chart-tab" onclick="setChartTab('wallets',this)">参与人数</button>
+        </div>
+        <canvas id="cityCompareChart" height="90"></canvas>
+      </div>
       <div class="chart-card"><h3>盈亏比例</h3><canvas id="pieChart2" height="180"></canvas></div>
     </div>
 
@@ -802,6 +809,32 @@ async function fetchTrackData(){
 
 // === Market Overview ===
 let cityCompareChart=null, pieChart2=null, mktPeriod=7;
+let mktChartTab='volume';
+let mktCachedFiltered=[];
+
+function setChartTab(tab,el){
+  mktChartTab=tab;
+  document.querySelectorAll('.chart-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderMktBarChart();
+}
+
+function renderMktBarChart(){
+  const filtered=mktCachedFiltered;
+  if(!filtered.length)return;
+  if(cityCompareChart)cityCompareChart.destroy();
+  const labelMap={volume:'交易量',events:'事件数',wallets:'参与人数'};
+  const colorMap={volume:['#3b82f666','#3b82f6'],events:['#8b5cf666','#8b5cf6'],wallets:['#f59e0b66','#f59e0b']};
+  const sorted=[...filtered].sort((a,b)=>(b[mktChartTab]||0)-(a[mktChartTab]||0)).slice(0,20);
+  const colors=colorMap[mktChartTab]||colorMap.volume;
+  cityCompareChart = new Chart(document.getElementById('cityCompareChart'),{
+    type:'bar',
+    data:{labels:sorted.map(c=>cityLabel(c.city)),datasets:[{data:sorted.map(c=>c[mktChartTab]||0),backgroundColor:colors[0],borderColor:colors[1],borderWidth:1,borderRadius:4}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>mktChartTab==='volume'?'$'+ctx.parsed.x.toLocaleString():ctx.parsed.x.toLocaleString()}}},
+      scales:{x:{ticks:{color:'#6b7280',callback:v=>mktChartTab==='volume'?'$'+fmt(v):v.toLocaleString()},grid:{color:'#f3f4f6'}},
+        y:{ticks:{color:'#374151',font:{size:11},autoSkip:false},grid:{display:false},afterFit:s=>{s.width=130}}}}
+  });
+}
 let mktSelectedCities=new Set();
 let mktAllCities=[];
 
@@ -893,27 +926,9 @@ async function loadMarketPage(force){
     {v:fmt(Math.abs(stats.total_loss||0)),l:'总亏损额',c:'red'},
   ].map(x=>`<div class="stat-card"><div class="stat-value ${x.c}">${x.v}</div><div class="stat-label">${x.l}</div></div>`).join('');
 
-  // Bar chart - all labels show city name
-  if(cityCompareChart)cityCompareChart.destroy();
-  const chartCities=filtered.slice(0,20);
-  cityCompareChart = new Chart(document.getElementById('cityCompareChart'),{
-    type:'bar',
-    data:{labels:chartCities.map(c=>cityLabel(c.city)),datasets:[{data:chartCities.map(c=>c.volume),backgroundColor:'#3b82f666',borderColor:'#3b82f6',borderWidth:1,borderRadius:4}]},
-    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'$'+ctx.parsed.x.toLocaleString()}}},
-      scales:{x:{ticks:{color:'#6b7280',callback:v=>'$'+fmt(v)},grid:{color:'#f3f4f6'}},
-        y:{ticks:{color:'#374151',font:{size:11},autoSkip:false},grid:{display:false},afterFit:s=>{s.width=130}}}}
-  });
-
-  // Events chart
-  if(window._cityEventsChart)window._cityEventsChart.destroy();
-  const evtCities=filtered.filter(c=>c.events>0).sort((a,b)=>(b.events||0)-(a.events||0)).slice(0,20);
-  window._cityEventsChart = new Chart(document.getElementById('cityEventsChart'),{
-    type:'bar',
-    data:{labels:evtCities.map(c=>cityLabel(c.city)),datasets:[{data:evtCities.map(c=>c.events||0),backgroundColor:'#8b5cf666',borderColor:'#8b5cf6',borderWidth:1,borderRadius:4}]},
-    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.x+' 事件'}}},
-      scales:{x:{ticks:{color:'#6b7280'},grid:{color:'#f3f4f6'}},
-        y:{ticks:{color:'#374151',font:{size:11},autoSkip:false},grid:{display:false},afterFit:s=>{s.width=130}}}}
-  });
+  // Bar chart (switchable via tab)
+  mktCachedFiltered = filtered;
+  renderMktBarChart();
 
   // Pie chart with percentages
   if(pieChart2)pieChart2.destroy();
