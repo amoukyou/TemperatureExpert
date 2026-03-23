@@ -158,22 +158,22 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
       <div class="expert-filter">
         <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">自定义过滤器</div>
         <div class="expert-params">
-          <span class="fp"><label>A类盈亏 ≥ $<input type="number" id="minPnlA" value="" placeholder="不限" onchange="loadWallets()">
+          <span class="fp"><label>A类盈亏 ≥ $<input type="number" id="minPnlA" value="" placeholder="不限" oninput="debouncedLoad()">
             <span class="help-tip">?<span class="help-bubble">排除所有B类标签交易后的盈亏。比旧版"有效盈亏"(0.85阈值)更精确。</span></span></label></span>
-          <span class="fp"><label>总盈亏 ≥ $<input type="number" id="minPnl" value="" placeholder="不限" onchange="loadWallets()">
+          <span class="fp"><label>总盈亏 ≥ $<input type="number" id="minPnl" value="" placeholder="不限" oninput="debouncedLoad()">
             <span class="help-tip">?<span class="help-bubble">包含A+B类所有交易的总盈亏。</span></span></label></span>
-          <span class="fp"><label>有效事件 ≥ <input type="number" id="minEvents" value="" placeholder="不限" onchange="loadWallets()"></label></span>
-          <span class="fp"><label>信念比 ≥ <input type="number" id="minConv" value="" placeholder="不限" onchange="loadWallets()">%</label></span>
-          <span class="fp"><label>均买价 ≤ <input type="number" id="maxAvgBuy" value="" placeholder="不限" step="0.05" onchange="loadWallets()"></label></span>
-          <span class="fp"><label>每事件选项 ≤ <input type="number" id="maxOpts" value="" placeholder="不限" onchange="loadWallets()"></label></span>
-          <span class="fp"><label>ROI ≥ <input type="number" id="minRoi" value="" placeholder="不限" onchange="loadWallets()">%
+          <span class="fp"><label>有效事件 ≥ <input type="number" id="minEvents" value="" placeholder="不限" oninput="debouncedLoad()"></label></span>
+          <span class="fp"><label>信念比 ≥ <input type="number" id="minConv" value="" placeholder="不限" oninput="debouncedLoad()">%</label></span>
+          <span class="fp"><label>均买价 ≤ <input type="number" id="maxAvgBuy" value="" placeholder="不限" step="0.05" oninput="debouncedLoad()"></label></span>
+          <span class="fp"><label>每事件选项 ≤ <input type="number" id="maxOpts" value="" placeholder="不限" oninput="debouncedLoad()"></label></span>
+          <span class="fp"><label>ROI ≥ <input type="number" id="minRoi" value="" placeholder="不限" oninput="debouncedLoad()">%
             <span class="help-tip">?<span class="help-bubble">总盈亏/总投入×100%。衡量资金使用效率。注意：包含A类和B类交易。</span></span></label></span>
-          <span class="fp"><label>B类占比 ≤ <input type="number" id="maxBratio" value="" placeholder="不限" min="0" max="100" step="10" onchange="loadWallets()">%
+          <span class="fp"><label>B类占比 ≤ <input type="number" id="maxBratio" value="" placeholder="不限" min="0" max="100" step="10" oninput="debouncedLoad()">%
             <span class="help-tip">?<span class="help-bubble">B类交易金额占总交易金额的比例。越高=越多交易是平台数学技巧而非温度预判。建议设≤30%找纯A类玩家。</span></span></label></span>
-          <span class="fp"><label>曲线评分 ≥ <input type="number" id="minCurveScore" value="" placeholder="不限" min="0" max="100" step="5" onchange="loadWallets()">
+          <span class="fp"><label>曲线评分 ≥ <input type="number" id="minCurveScore" value="" placeholder="不限" min="0" max="100" step="5" oninput="debouncedLoad()">
             <span class="help-tip">?<span class="help-bubble">综合评价资产曲线质量(0-100分)。<br>考虑：夏普比率(30%)、盈利因子(25%)、恢复因子(20%)、回撤比(15%)、连胜(10%)。<br>≥70=优秀 ≥50=良好 &lt;30=差</span></span></label></span>
           <span class="fp"><label>近期活跃
-            <select id="activeFilter" onchange="loadWallets()" style="width:85px">
+            <select id="activeFilter" oninput="debouncedLoad()" style="width:85px">
               <option value="">不限</option><option value="7">7天内</option><option value="14">14天内</option><option value="30">30天内</option>
             </select></label></span>
         </div>
@@ -187,13 +187,13 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
       <div class="controls">
         <input type="text" id="search" placeholder="搜索昵称或钱包..." onkeydown="if(event.key==='Enter')loadWallets()">
         <button class="filter-btn" onclick="loadWallets()">搜索</button>
-        <select id="sortField" onchange="loadWallets()">
+        <select id="sortField" oninput="debouncedLoad()">
           <option value="pnl_a">A类盈亏</option><option value="total_pnl">总盈亏</option>
           <option value="win_rate_a">A类胜率</option><option value="roi">ROI</option>
           <option value="conv">信念比</option><option value="events_a">A类事件</option>
           <option value="curve_score">曲线评分</option><option value="total_spent">总投入</option><option value="a7">近7天</option>
         </select>
-        <select id="sortDir" onchange="loadWallets()">
+        <select id="sortDir" oninput="debouncedLoad()">
           <option value="desc">降序</option><option value="asc">升序</option>
         </select>
       </div>
@@ -279,6 +279,7 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
 
 <script>
 const API=window.location.pathname.replace(/\/+$/,'') + '/api';
+let _debounce;function debouncedLoad(){clearTimeout(_debounce);_debounce=setTimeout(()=>{currentPage=0;loadWallets()},300)}
 let currentPage=0;const PAGE_SIZE=200;
 
 // === Helper ===
@@ -314,7 +315,8 @@ async function loadWallets(){
   const res=await(await fetch(`${API}/wallets?${params}`)).json();
   renderWalletTable(res);
   loadFilteredStats(params);
-  loadDailyChart();
+  clearTimeout(window._dailyTimer);
+  window._dailyTimer = setTimeout(loadDailyChart, 500);
 }
 
 async function loadFilteredStats(params){
