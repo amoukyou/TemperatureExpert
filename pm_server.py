@@ -16,7 +16,11 @@ def get_db():
         g.db = sqlite3.connect(DB_PATH)
         g.db.row_factory = sqlite3.Row
         g.db.execute('PRAGMA journal_mode=WAL')
-        g.db.execute('PRAGMA cache_size=-64000')
+        g.db.execute('PRAGMA cache_size=-128000')
+        g.db.execute('PRAGMA mmap_size=1073741824')
+        g.db.execute('PRAGMA temp_store=MEMORY')
+        g.db.execute('PRAGMA read_uncommitted=ON')
+        g.db.execute('PRAGMA busy_timeout=30000')
     return g.db
 
 @app.teardown_appcontext
@@ -284,10 +288,9 @@ def filtered_daily():
     return jsonify([dict(r) for r in rows])
 
 # === Stats ===
-@app.route('/api/stats')
-# Stats cache (refreshed every 5 min)
 _stats_cache = {}
 
+@app.route('/api/stats')
 def get_stats():
     import time as _t
     db = get_db()
@@ -362,15 +365,27 @@ def get_cities():
     if days and int(days) > 0:
         rows = db.execute('''
             SELECT t.city, COUNT(DISTINCT t.wallet) as wallets, COUNT(*) as trades,
-                ROUND(SUM(t.amount)) as volume, COUNT(DISTINCT t.event_id) as events
+                ROUND(SUM(t.amount)) as volume, COUNT(DISTINCT t.event_id) as events,
+                0 as profitable, 0 as losing
             FROM trades t WHERE t.timestamp >= strftime('%s','now') - ? * 86400
             GROUP BY t.city ORDER BY volume DESC
         ''', (int(days),)).fetchall()
+        # Enrich with profitable/losing from wallet_city
+        data_tmp = [dict(r) for r in rows]
+        for d in data_tmp:
+            pl = db.execute('SELECT SUM(CASE WHEN pnl>0.01 THEN 1 ELSE 0 END), SUM(CASE WHEN pnl<-0.01 THEN 1 ELSE 0 END) FROM wallet_city WHERE city=?', (d['city'],)).fetchone()
+            d['profitable'] = pl[0] or 0
+            d['losing'] = pl[1] or 0
+        data = data_tmp
+        _cities_cache[cache_key] = {'data': data, 'ts': _t.time()}
+        return jsonify(data)
     else:
         rows = db.execute('''
             SELECT wc.city, COUNT(DISTINCT wc.wallet) as wallets, SUM(wc.trades) as trades,
                 ROUND(SUM(wc.spent+wc.recv+wc.near_settle)) as volume,
-                (SELECT COUNT(*) FROM events e WHERE e.city=wc.city) as events
+                (SELECT COUNT(*) FROM events e WHERE e.city=wc.city) as events,
+                SUM(CASE WHEN wc.pnl>0.01 THEN 1 ELSE 0 END) as profitable,
+                SUM(CASE WHEN wc.pnl<-0.01 THEN 1 ELSE 0 END) as losing
             FROM wallet_city wc GROUP BY wc.city ORDER BY volume DESC
         ''').fetchall()
     data = [dict(r) for r in rows]

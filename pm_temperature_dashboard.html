@@ -104,8 +104,6 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
     <a href="pm_strategies.html" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#fff;border:1px solid #d1d5db;border-radius:8px;color:#374151;text-decoration:none;font-size:13px;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.05)">&#x1f4d6; 策略图鉴</a>
   </div>
 
-  <div class="stats-grid" id="statsGrid"><div class="loading">加载中...</div></div>
-
   <div class="tabs">
     <button class="tab" onclick="switchTab('market')" id="tabMarket">&#x1f4ca; 市场概览</button>
     <button class="tab active" onclick="switchTab('search')" id="tabSearch">&#x1f50d; 搜索筛选</button>
@@ -115,45 +113,68 @@ td:nth-child(n+2):nth-child(-n+4){text-align:left}
 
   <!-- Market Tab -->
   <div id="pageMarket" style="display:none">
-    <div class="filter-section" style="padding:10px 18px;margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
+    <!-- Unified filter bar: time + city -->
+    <div class="filter-section" style="padding:12px 18px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="display:flex;gap:6px;align-items:center">
-          <span style="font-size:13px;font-weight:600">时间范围</span>
+          <span style="font-size:13px;font-weight:600">时间</span>
           <button class="filter-btn mkt-period active" onclick="setMktPeriod(7,this)">7天</button>
           <button class="filter-btn mkt-period" onclick="setMktPeriod(14,this)">14天</button>
           <button class="filter-btn mkt-period" onclick="setMktPeriod(30,this)">30天</button>
           <button class="filter-btn mkt-period" onclick="setMktPeriod(0,this)">全部</button>
         </div>
-      </div>
-    </div>
-    <div class="stats-grid" id="marketStats"></div>
-    <div style="display:grid;grid-template-columns:3fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="chart-card"><h3>城市交易量对比</h3><canvas id="cityCompareChart" height="90"></canvas></div>
-      <div class="chart-card"><h3>盈亏比例</h3><canvas id="pieChart2" height="180"></canvas></div>
-    </div>
-    <div class="filter-section" style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:13px;font-weight:600">城市过滤</span>
-        <div style="display:flex;gap:4px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="filter-btn" onclick="mktSelectAll()" style="font-size:10px;padding:2px 8px">全选</button>
           <button class="filter-btn" onclick="mktDeselectAll()" style="font-size:10px;padding:2px 8px">全不选</button>
+          <span style="color:#d1d5db">|</span>
+          <button class="filter-btn" onclick="mktSelectRegion('asia')" style="font-size:10px;padding:2px 8px">亚洲</button>
+          <button class="filter-btn" onclick="mktSelectRegion('europe')" style="font-size:10px;padding:2px 8px">欧洲</button>
+          <button class="filter-btn" onclick="mktSelectRegion('americas')" style="font-size:10px;padding:2px 8px">美洲</button>
+          <button class="filter-btn" onclick="mktSelectRegion('oceania')" style="font-size:10px;padding:2px 8px">大洋洲</button>
+          <button class="filter-btn" onclick="mktSelectRegion('mideast')" style="font-size:10px;padding:2px 8px">中东</button>
         </div>
       </div>
       <div id="mktCityTags" class="city-tags"></div>
     </div>
+
+    <!-- Stats cards -->
+    <div class="stats-grid" id="marketStats"></div>
+
+    <!-- Charts -->
+    <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="chart-card"><h3>城市交易量</h3><canvas id="cityCompareChart" height="90"></canvas></div>
+      <div class="chart-card"><h3>城市事件数</h3><canvas id="cityEventsChart" height="90"></canvas></div>
+      <div class="chart-card"><h3>盈亏比例</h3><canvas id="pieChart2" height="180"></canvas></div>
+    </div>
+
+    <!-- City ranking -->
     <div class="filter-section">
-      <div style="font-size:14px;font-weight:600;margin-bottom:8px">城市热度排行</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:14px;font-weight:600">城市热度排行</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <span style="font-size:11px;color:#9ca3af">排序</span>
+          <select id="citySortField" onchange="loadMarketPage(true)" style="background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 6px;font-size:11px">
+            <option value="volume">交易量</option>
+            <option value="wallets">参与人数</option>
+            <option value="trades">交易笔数</option>
+            <option value="events">事件数</option>
+            <option value="profitRatio">盈利占比</option>
+          </select>
+        </div>
+      </div>
       <div class="table-wrapper" style="max-height:50vh">
         <table><thead><tr>
           <th style="text-align:left">#</th><th style="text-align:left">城市</th>
-          <th>事件数</th><th>参与人数</th><th>交易笔数</th><th>交易量($)</th>
+          <th>事件</th><th>参与人</th><th>交易笔数</th><th>交易量</th><th>盈利人数</th><th>亏损人数</th><th>盈利占比</th>
         </tr></thead><tbody id="cityTbody"></tbody></table>
       </div>
     </div>
   </div>
 
   <!-- Search Tab -->
+  <!-- Search Tab -->
   <div id="pageSearch">
+    <div class="stats-grid" id="statsGrid"><div class="loading">加载中...</div></div>
     <div class="filter-section">
       <div class="expert-filter">
         <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">自定义过滤器</div>
@@ -804,8 +825,21 @@ function setMktPeriod(p,el){
   el.classList.add('active');
   loadMarketPage(true);
 }
+const REGIONS={
+  asia:['Seoul','Tokyo','Shanghai','Beijing','Shenzhen','Chongqing','Wuhan','Chengdu','Hong Kong','Taipei','Singapore','Lucknow','Bangkok'],
+  europe:['London','Paris','Madrid','Milan','Munich','Warsaw','Ankara'],
+  americas:['NYC','Toronto','Chicago','Miami','Dallas','Atlanta','Seattle','Houston','Denver','Austin','Los Angeles','San Francisco','Buenos Aires','Sao Paulo'],
+  oceania:['Wellington'],
+  mideast:['Tel Aviv','Dubai'],
+};
 function mktSelectAll(){mktSelectedCities=new Set(mktAllCities);renderMktCityTags();loadMarketPage(true)}
 function mktDeselectAll(){mktSelectedCities.clear();renderMktCityTags();loadMarketPage(true)}
+function mktSelectRegion(region){
+  mktSelectedCities.clear();
+  const rc=REGIONS[region]||[];
+  for(const c of mktAllCities){if(rc.includes(c))mktSelectedCities.add(c)}
+  renderMktCityTags();loadMarketPage(true);
+}
 function mktToggleCity(city){
   if(mktSelectedCities.has(city))mktSelectedCities.delete(city);else mktSelectedCities.add(city);
   renderMktCityTags();loadMarketPage(true);
@@ -870,6 +904,17 @@ async function loadMarketPage(force){
         y:{ticks:{color:'#374151',font:{size:11},autoSkip:false},grid:{display:false},afterFit:s=>{s.width=130}}}}
   });
 
+  // Events chart
+  if(window._cityEventsChart)window._cityEventsChart.destroy();
+  const evtCities=filtered.filter(c=>c.events>0).sort((a,b)=>(b.events||0)-(a.events||0)).slice(0,20);
+  window._cityEventsChart = new Chart(document.getElementById('cityEventsChart'),{
+    type:'bar',
+    data:{labels:evtCities.map(c=>cityLabel(c.city)),datasets:[{data:evtCities.map(c=>c.events||0),backgroundColor:'#8b5cf666',borderColor:'#8b5cf6',borderWidth:1,borderRadius:4}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.x+' 事件'}}},
+      scales:{x:{ticks:{color:'#6b7280'},grid:{color:'#f3f4f6'}},
+        y:{ticks:{color:'#374151',font:{size:11},autoSkip:false},grid:{display:false},afterFit:s=>{s.width=130}}}}
+  });
+
   // Pie chart with percentages
   if(pieChart2)pieChart2.destroy();
   const uCount=tw-stats.profitable-stats.losing;
@@ -880,11 +925,24 @@ async function loadMarketPage(force){
     options:{plugins:{legend:{position:'bottom',labels:{color:'#374151',padding:8,font:{size:11}}}}}
   });
 
-  // City table
-  document.getElementById('cityTbody').innerHTML = filtered.map((c,i)=>
-    `<tr><td style="text-align:left">${i+1}</td><td style="text-align:left;font-weight:600">${cityLabel(c.city)}</td>
-    <td>${c.events||0}</td><td>${c.wallets.toLocaleString()}</td><td>${c.trades.toLocaleString()}</td><td>$${fmt(c.volume)}</td></tr>`
-  ).join('');
+  // City table - sort by selected field
+  const citySort = document.getElementById('citySortField')?.value || 'volume';
+  const sortedCities = [...filtered].sort((a,b)=>{
+    if(citySort==='profitRatio'){
+      const ra=a.wallets>0?(a.profitable||0)/a.wallets:0;
+      const rb=b.wallets>0?(b.profitable||0)/b.wallets:0;
+      return rb-ra;
+    }
+    return (b[citySort]||0)-(a[citySort]||0);
+  });
+  document.getElementById('cityTbody').innerHTML = sortedCities.map((c,i)=>{
+    const prof=c.profitable||0; const loss=c.losing||0;
+    const ratio=c.wallets>0?(prof/c.wallets*100).toFixed(1):'0';
+    return `<tr><td style="text-align:left">${i+1}</td><td style="text-align:left;font-weight:600">${cityLabel(c.city)}</td>
+    <td>${c.events||0}</td><td>${c.wallets.toLocaleString()}</td><td>${c.trades.toLocaleString()}</td><td>$${(c.volume||0).toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+    <td style="color:#059669">${prof.toLocaleString()}</td><td style="color:#dc2626">${loss.toLocaleString()}</td>
+    <td style="font-weight:600;color:${parseFloat(ratio)>50?'#059669':'#dc2626'}">${ratio}%</td></tr>`;
+  }).join('');
 
 }
 
