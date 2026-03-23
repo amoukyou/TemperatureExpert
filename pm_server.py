@@ -284,15 +284,31 @@ def filtered_stats():
     if search:
         where.append('(wallet LIKE ? OR name LIKE ?)'); params.extend([f'%{search}%',f'%{search}%'])
     w = ' AND '.join(where)
-    row = db.execute(f'''
-        SELECT COUNT(*) as total,
-            SUM(CASE WHEN pnl_a>0.01 THEN 1 ELSE 0 END) as profitable,
-            SUM(CASE WHEN pnl_a<-0.01 THEN 1 ELSE 0 END) as losing,
-            ROUND(SUM(total_spent)) as total_spent,
-            ROUND(SUM(pnl_a)) as total_pnl_a,
-            ROUND(SUM(total_pnl)) as total_pnl
-        FROM wallets WHERE {w}
-    ''', params).fetchone()
+    cities_param = request.args.get('cities', '')
+    if cities_param:
+        city_list = [c.strip() for c in cities_param.split(',') if c.strip()]
+        cph = ','.join('?' * len(city_list))
+        row = db.execute(f'''
+            SELECT COUNT(DISTINCT wc.wallet) as total,
+                SUM(CASE WHEN wc.pnl>0.01 THEN 1 ELSE 0 END) as profitable,
+                SUM(CASE WHEN wc.pnl<-0.01 THEN 1 ELSE 0 END) as losing,
+                ROUND(SUM(wc.spent)) as total_spent,
+                ROUND(SUM(wc.pnl_low)) as total_pnl_a,
+                ROUND(SUM(wc.pnl)) as total_pnl
+            FROM wallet_city wc
+            JOIN wallets w ON wc.wallet = w.wallet
+            WHERE wc.city IN ({cph}) AND {w}
+        ''', city_list + params).fetchone()
+    else:
+        row = db.execute(f'''
+            SELECT COUNT(*) as total,
+                SUM(CASE WHEN pnl_a>0.01 THEN 1 ELSE 0 END) as profitable,
+                SUM(CASE WHEN pnl_a<-0.01 THEN 1 ELSE 0 END) as losing,
+                ROUND(SUM(total_spent)) as total_spent,
+                ROUND(SUM(pnl_a)) as total_pnl_a,
+                ROUND(SUM(total_pnl)) as total_pnl
+            FROM wallets WHERE {w}
+        ''', params).fetchone()
     return jsonify(dict(row))
 
 # === Filtered Daily (uses same wallet filters) ===
