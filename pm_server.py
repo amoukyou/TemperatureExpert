@@ -5,11 +5,11 @@ import urllib.request
 from flask import Flask, jsonify, request, send_from_directory, g
 from flask_cors import CORS
 
-app = Flask(__name__, static_folder='/opt/pm-expert', static_url_path='')
+app = Flask(__name__, static_folder='/Users/victor', static_url_path='')
 CORS(app)
 
-DB_PATH = '/opt/pm-expert/pm_temperature.db'
-STATIC_DIR = '/opt/pm-expert'
+DB_PATH = '/Users/victor/pm_temperature.db'
+STATIC_DIR = '/Users/victor'
 
 def get_db():
     if 'db' not in g:
@@ -286,34 +286,65 @@ def filtered_daily():
 # === Stats ===
 @app.route('/api/stats')
 # Stats cache (refreshed every 5 min)
-_stats_cache = {'data': None, 'ts': 0}
+_stats_cache = {}
 
 def get_stats():
     import time as _t
-    now = _t.time()
-    if _stats_cache['data'] and now - _stats_cache['ts'] < 300:
-        return jsonify(_stats_cache['data'])
-
     db = get_db()
-    total_w = db.execute('SELECT COUNT(*) FROM wallets').fetchone()[0]
-    profitable = db.execute('SELECT COUNT(*) FROM wallets WHERE total_pnl>0.01').fetchone()[0]
-    losing = db.execute('SELECT COUNT(*) FROM wallets WHERE total_pnl<-0.01').fetchone()[0]
-    total_profit = db.execute('SELECT COALESCE(SUM(total_pnl),0) FROM wallets WHERE total_pnl>0').fetchone()[0]
-    total_loss = db.execute('SELECT COALESCE(SUM(total_pnl),0) FROM wallets WHERE total_pnl<0').fetchone()[0]
+    cities_param = request.args.get('cities', '')
+    days_param = request.args.get('days', '')
+
+    # If no city filter, use cache
+    cache_key = f'stats_{cities_param}_{days_param}'
+    now = _t.time()
+    if cache_key in _stats_cache and now - _stats_cache[cache_key].get('ts',0) < 300:
+        return jsonify(_stats_cache[cache_key]['data'])
+
+    if cities_param:
+        # Filter by selected cities using wallet_city table
+        city_list = [c.strip() for c in cities_param.split(',') if c.strip()]
+        placeholders = ','.join('?' * len(city_list))
+
+        r = db.execute(f'''
+            SELECT COUNT(DISTINCT wc.wallet) as total,
+                SUM(CASE WHEN wc.pnl > 0.01 THEN 1 ELSE 0 END) as profitable,
+                SUM(CASE WHEN wc.pnl < -0.01 THEN 1 ELSE 0 END) as losing,
+                COALESCE(SUM(CASE WHEN wc.pnl > 0 THEN wc.pnl ELSE 0 END), 0) as total_profit,
+                COALESCE(SUM(CASE WHEN wc.pnl < 0 THEN wc.pnl ELSE 0 END), 0) as total_loss,
+                SUM(wc.trades) as total_trades,
+                SUM(wc.spent + wc.recv + wc.near_settle) as total_volume
+            FROM wallet_city wc WHERE wc.city IN ({placeholders})
+        ''', city_list).fetchone()
+
+        events_count = db.execute(f'SELECT COUNT(*) FROM events WHERE city IN ({placeholders})', city_list).fetchone()[0]
+        cities_count = len(city_list)
+    else:
+        r = db.execute('''
+            SELECT COUNT(*) as total,
+                SUM(CASE WHEN total_pnl>0.01 THEN 1 ELSE 0 END) as profitable,
+                SUM(CASE WHEN total_pnl<-0.01 THEN 1 ELSE 0 END) as losing,
+                COALESCE(SUM(CASE WHEN total_pnl>0 THEN total_pnl ELSE 0 END),0) as total_profit,
+                COALESCE(SUM(CASE WHEN total_pnl<0 THEN total_pnl ELSE 0 END),0) as total_loss
+            FROM wallets
+        ''').fetchone()
+        events_count = db.execute('SELECT COUNT(*) FROM events').fetchone()[0]
+        cities_count = db.execute("SELECT COUNT(DISTINCT city) FROM events WHERE city NOT IN ('Other','DC','Dubai')").fetchone()[0]
+
+    total_w = r[0] or 0; profitable = r[1] or 0; losing = r[2] or 0
+    total_profit = r[3] or 0; total_loss = r[4] or 0
 
     data = {
         'total_wallets': total_w,
-        'total_events': db.execute('SELECT COUNT(*) FROM events').fetchone()[0],
-        'total_trades': db.execute('SELECT COUNT(*) FROM trades').fetchone()[0],
-        'total_cities': db.execute("SELECT COUNT(DISTINCT city) FROM events WHERE city NOT IN ('Other','DC','Dubai')").fetchone()[0],
+        'total_events': events_count,
+        'total_trades': r[5] if cities_param and len(r) > 5 else db.execute('SELECT COUNT(*) FROM trades').fetchone()[0],
+        'total_cities': cities_count,
         'profitable': profitable,
         'losing': losing,
         'unsettled_wallets': total_w - profitable - losing,
         'total_profit': round(total_profit),
         'total_loss': round(total_loss),
     }
-    _stats_cache['data'] = data
-    _stats_cache['ts'] = now
+    _stats_cache[cache_key] = {'data': data, 'ts': now}
     return jsonify(data)
 
 # Cities cache

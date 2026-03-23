@@ -818,10 +818,14 @@ function renderMktCityTags(){
 
 async function loadMarketPage(force){
   if(!force&&cityCompareChart)return;
-  const daysParam = mktPeriod > 0 ? `?days=${mktPeriod}` : '';
+  const daysParam = mktPeriod > 0 ? `days=${mktPeriod}` : '';
+  const citiesParam = mktSelectedCities.size>0&&mktSelectedCities.size<mktAllCities.length
+    ? `cities=${[...mktSelectedCities].join(',')}` : '';
+  const statsQ = [daysParam, citiesParam].filter(x=>x).join('&');
+  const citiesQ = daysParam ? `?${daysParam}` : '';
   const [cities, stats] = await Promise.all([
-    fetch(`${API}/cities${daysParam}`).then(r=>r.json()),
-    fetch(`${API}/stats`).then(r=>r.json())
+    fetch(`${API}/cities${citiesQ}`).then(r=>r.json()),
+    fetch(`${API}/stats${statsQ?'?'+statsQ:''}`).then(r=>r.json())
   ]);
 
   // Init city filter
