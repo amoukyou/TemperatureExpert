@@ -5,11 +5,11 @@ import urllib.request
 from flask import Flask, jsonify, request, send_from_directory, g
 from flask_cors import CORS
 
-app = Flask(__name__, static_folder='/Users/victor', static_url_path='')
+app = Flask(__name__, static_folder='/opt/pm-expert', static_url_path='')
 CORS(app)
 
-DB_PATH = '/Users/victor/pm_temperature.db'
-STATIC_DIR = '/Users/victor'
+DB_PATH = '/opt/pm-expert/pm_temperature.db'
+STATIC_DIR = '/opt/pm-expert'
 
 def get_db():
     if 'db' not in g:
@@ -132,28 +132,7 @@ def get_events():
     rows = db.execute(f'SELECT * FROM events WHERE {" AND ".join(where)} ORDER BY end_date DESC LIMIT ?', params+[limit]).fetchall()
     return jsonify([dict(r) for r in rows])
 
-# === City Stats ===
-@app.route('/api/cities')
-def get_cities():
-    db = get_db()
-    days = request.args.get('days')
-    if days and int(days) > 0:
-        rows = db.execute('''
-            SELECT t.city, COUNT(DISTINCT t.wallet) as wallets, COUNT(*) as trades,
-                ROUND(SUM(t.amount)) as volume,
-                COUNT(DISTINCT t.event_id) as events
-            FROM trades t
-            WHERE t.timestamp >= strftime('%s','now') - ? * 86400
-            GROUP BY t.city ORDER BY volume DESC
-        ''', (int(days),)).fetchall()
-    else:
-        rows = db.execute('''
-            SELECT wc.city, COUNT(DISTINCT wc.wallet) as wallets, SUM(wc.trades) as trades,
-                ROUND(SUM(wc.spent+wc.recv+wc.near_settle)) as volume,
-                (SELECT COUNT(*) FROM events e WHERE e.city=wc.city) as events
-            FROM wallet_city wc GROUP BY wc.city ORDER BY volume DESC
-        ''').fetchall()
-    return jsonify([dict(r) for r in rows])
+# === City Stats (moved to bottom with cache) ===
 
 # === Daily Stats ===
 @app.route('/api/daily')
@@ -306,35 +285,66 @@ def filtered_daily():
 
 # === Stats ===
 @app.route('/api/stats')
+# Stats cache (refreshed every 5 min)
+_stats_cache = {'data': None, 'ts': 0}
+
 def get_stats():
+    import time as _t
+    now = _t.time()
+    if _stats_cache['data'] and now - _stats_cache['ts'] < 300:
+        return jsonify(_stats_cache['data'])
+
     db = get_db()
     total_w = db.execute('SELECT COUNT(*) FROM wallets').fetchone()[0]
     profitable = db.execute('SELECT COUNT(*) FROM wallets WHERE total_pnl>0.01').fetchone()[0]
     losing = db.execute('SELECT COUNT(*) FROM wallets WHERE total_pnl<-0.01').fetchone()[0]
-    unsettled_w = total_w - profitable - losing
-
     total_profit = db.execute('SELECT COALESCE(SUM(total_pnl),0) FROM wallets WHERE total_pnl>0').fetchone()[0]
     total_loss = db.execute('SELECT COALESCE(SUM(total_pnl),0) FROM wallets WHERE total_pnl<0').fetchone()[0]
 
-    unsettled_vol = db.execute('''SELECT COALESCE(SUM(t.amount),0) FROM trades t
-        JOIN events e ON t.event_id=e.event_id WHERE e.closed=0''').fetchone()[0]
-    no_winner_vol = db.execute('''SELECT COALESCE(SUM(t.amount),0) FROM trades t
-        JOIN events e ON t.event_id=e.event_id WHERE e.closed=1
-        AND (SELECT COUNT(*) FROM markets m WHERE m.event_id=e.event_id AND m.is_winner=1)=0''').fetchone()[0]
-
-    return jsonify({
+    data = {
         'total_wallets': total_w,
         'total_events': db.execute('SELECT COUNT(*) FROM events').fetchone()[0],
         'total_trades': db.execute('SELECT COUNT(*) FROM trades').fetchone()[0],
         'total_cities': db.execute("SELECT COUNT(DISTINCT city) FROM events WHERE city NOT IN ('Other','DC','Dubai')").fetchone()[0],
         'profitable': profitable,
         'losing': losing,
-        'unsettled_wallets': unsettled_w,
+        'unsettled_wallets': total_w - profitable - losing,
         'total_profit': round(total_profit),
         'total_loss': round(total_loss),
-        'unsettled_volume': round(unsettled_vol),
-        'no_winner_volume': round(no_winner_vol),
-    })
+    }
+    _stats_cache['data'] = data
+    _stats_cache['ts'] = now
+    return jsonify(data)
+
+# Cities cache
+_cities_cache = {}
+
+@app.route('/api/cities')
+def get_cities():
+    import time as _t
+    db = get_db()
+    days = request.args.get('days', '')
+    cache_key = f'cities_{days}'
+    if cache_key in _cities_cache and _t.time() - _cities_cache[cache_key]['ts'] < 300:
+        return jsonify(_cities_cache[cache_key]['data'])
+
+    if days and int(days) > 0:
+        rows = db.execute('''
+            SELECT t.city, COUNT(DISTINCT t.wallet) as wallets, COUNT(*) as trades,
+                ROUND(SUM(t.amount)) as volume, COUNT(DISTINCT t.event_id) as events
+            FROM trades t WHERE t.timestamp >= strftime('%s','now') - ? * 86400
+            GROUP BY t.city ORDER BY volume DESC
+        ''', (int(days),)).fetchall()
+    else:
+        rows = db.execute('''
+            SELECT wc.city, COUNT(DISTINCT wc.wallet) as wallets, SUM(wc.trades) as trades,
+                ROUND(SUM(wc.spent+wc.recv+wc.near_settle)) as volume,
+                (SELECT COUNT(*) FROM events e WHERE e.city=wc.city) as events
+            FROM wallet_city wc GROUP BY wc.city ORDER BY volume DESC
+        ''').fetchall()
+    data = [dict(r) for r in rows]
+    _cities_cache[cache_key] = {'data': data, 'ts': _t.time()}
+    return jsonify(data)
 
 if __name__ == '__main__':
     print(f"Database: {DB_PATH} ({os.path.getsize(DB_PATH)/1024/1024:.0f} MB)")
