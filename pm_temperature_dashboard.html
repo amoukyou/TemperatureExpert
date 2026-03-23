@@ -971,7 +971,19 @@ function renderMktCityTags(){
 
 async function loadMarketPage(force){
   if(!force&&cityCompareChart)return;
-  document.getElementById('marketStats').innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af;grid-column:1/-1"><div class="spinner"></div></div>';
+  // Full page loading overlay
+  const mktPage=document.getElementById('pageMarket');
+  let overlay=document.getElementById('mktOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='mktOverlay';
+    overlay.style.cssText='position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.8);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:12px';
+    overlay.innerHTML='<div style="text-align:center"><div class="spinner" style="width:32px;height:32px;border-width:4px"></div><div style="margin-top:8px;color:#6b7280;font-size:13px">加载市场数据...</div></div>';
+    mktPage.style.position='relative';
+    mktPage.appendChild(overlay);
+  }
+  overlay.style.display='flex';
+  document.getElementById('marketStats').innerHTML='';
   const daysParam = mktPeriod > 0 ? `days=${mktPeriod}` : '';
   const citiesParam = mktSelectedCities.size>0&&mktSelectedCities.size<mktAllCities.length
     ? `cities=${[...mktSelectedCities].join(',')}` : '';
@@ -1077,6 +1089,9 @@ async function loadMarketPage(force){
     </div>`;
   }).join('');
 
+  // Hide loading overlay
+  const ov=document.getElementById('mktOverlay');
+  if(ov)ov.style.display='none';
 }
 
 // === Tabs ===
